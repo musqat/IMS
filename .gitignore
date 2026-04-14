@@ -1,0 +1,15 @@
+# IntelliJ
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# macOS
+.DS_Store
+
+# Environment
+.env
+*.env.local
+
+# Logs
+*.log
