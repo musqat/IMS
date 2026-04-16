@@ -1,5 +1,6 @@
 package com.ims.global.security;
 
+import com.ims.global.common.UserType;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,12 +29,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         if (StringUtils.hasText(token) && jwtProvider.isValid(token)) {
             Long userId = jwtProvider.getUserId(token);
+            UserType userType = jwtProvider.getUserType(token);
             String role = jwtProvider.getRole(token);
 
-            List<SimpleGrantedAuthority> authorities = role != null
-                    ? List.of(new SimpleGrantedAuthority("ROLE_" + role))
-                    : List.of();
-            var authentication = new UsernamePasswordAuthenticationToken(userId, null, authorities);
+            AuthPrincipal principal = new AuthPrincipal(userId, userType);
+            List<SimpleGrantedAuthority> authorities = UserType.USER == userType
+                    ? List.of(new SimpleGrantedAuthority("ROLE_USER"))
+                    : role != null
+                            ? List.of(new SimpleGrantedAuthority("ROLE_" + role))
+                            : List.of();
+            var authentication = new UsernamePasswordAuthenticationToken(principal, null, authorities);
             SecurityContextHolder.getContext().setAuthentication(authentication);
         }
 

@@ -1,11 +1,12 @@
 package com.ims.user.entity;
 
+import com.ims.global.common.Role;
 import jakarta.persistence.*;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
 
@@ -15,40 +16,38 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 @EntityListeners(AuditingEntityListener.class)
-@Table(name = "users")
-public class User {
+@Table(
+        name = "sub_users",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "login_id"})
+)
+public class SubUser {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
-    private String email;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
+    @Column(nullable = false)
+    private String loginId;
 
     @Column(nullable = false)
     private String password;
 
     @Column(nullable = false)
-    private String companyName;
+    private String name;
 
-    @Column(unique = true, nullable = false, length = 10)
-    private String companyCode;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role; // PRODUCTION 또는 WAREHOUSE
 
     @CreatedDate
     private LocalDateTime createdAt;
 
     @LastModifiedDate
     private LocalDateTime updatedAt;
-
-    public static User register(String email, String rawPassword, String companyName,
-                                String companyCode, PasswordEncoder encoder) {
-        return User.builder()
-                .email(email)
-                .password(encoder.encode(rawPassword))
-                .companyName(companyName)
-                .companyCode(companyCode)
-                .build();
-    }
 
     public boolean matchesPassword(String rawPassword, PasswordEncoder encoder) {
         return encoder.matches(rawPassword, this.password);

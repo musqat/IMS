@@ -1,4 +1,4 @@
-package com.ims.user.dto;
+package com.ims.user.dto.response;
 
 public record LoginResponse(
         String accessToken,

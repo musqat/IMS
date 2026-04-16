@@ -22,6 +22,10 @@ public enum ErrorCode {
     INVALID_PASSWORD(HttpStatus.UNAUTHORIZED, "비밀번호가 일치하지 않습니다."),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 사용자입니다."),
 
+    // SubUser
+    DUPLICATE_LOGIN_ID(HttpStatus.CONFLICT, "이미 사용 중인 로그인 ID입니다."),
+    SUB_USER_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 하위 계정입니다."),
+
     // Business
     CANCEL_DEADLINE_EXCEEDED(HttpStatus.BAD_REQUEST, "취소 가능 시간이 초과되었습니다."),
     ALREADY_SETTLED(HttpStatus.BAD_REQUEST, "이미 결산된 기록입니다."),

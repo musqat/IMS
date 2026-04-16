@@ -20,10 +20,15 @@ class UserRepositoryTest {
     private UserRepository userRepository;
 
     @Test
-    @DisplayName("User 저장 후 이메일로 조회 성공")
+    @DisplayName("이메일로 조회 성공")
     void findByEmail_success() {
         // given
-        User user = User.builder().email("test@test.com").password("encodedPassword").companyName("테스트회사").build();
+        User user = User.builder()
+                .email("test@test.com")
+                .password("encodedPassword")
+                .companyName("테스트회사")
+                .companyCode("1234567890")
+                .build();
         userRepository.save(user);
 
         // when
@@ -35,10 +40,15 @@ class UserRepositoryTest {
     }
 
     @Test
-    @DisplayName("존재하는 이메일 - true")
+    @DisplayName("이메일 존재 여부 - true")
     void existsByEmail_true() {
         // given
-        User user = User.builder().email("test@test.com").password("encodedPassword").companyName("테스트회사").build();
+        User user = User.builder()
+                .email("test@test.com")
+                .password("encodedPassword")
+                .companyName("테스트회사")
+                .companyCode("1234567890")
+                .build();
         userRepository.save(user);
 
         // when & then
@@ -46,7 +56,7 @@ class UserRepositoryTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 이메일 - false")
+    @DisplayName("이메일 존재 여부 - false")
     void existsByEmail_false() {
         // when & then
         assertThat(userRepository.existsByEmail("no@test.com")).isFalse();
