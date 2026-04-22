@@ -25,7 +25,7 @@ public class GlobalExceptionHandler {
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .findFirst()
                 .orElse("입력값이 올바르지 않습니다.");
-        return new ResponseEntity<>(new ApiResponse<>(HttpStatus.BAD_REQUEST, message, null), HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(new ApiResponse<>(message, null), HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(AccessDeniedException.class)

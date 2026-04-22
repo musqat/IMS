@@ -1,7 +1,5 @@
 package com.ims.global.security;
 
-import com.ims.global.common.Role;
-import com.ims.global.common.UserType;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -19,26 +17,19 @@ public class JwtProvider {
 
     private final JwtProperties jwtProperties;
 
-    public String generateAccessToken(Long userId, UserType userType, Role role) {
-        var builder = Jwts.builder()
+    public String generateAccessToken(Long userId) {
+        return Jwts.builder()
                 .claim("userId", userId)
-                .claim("userType", userType.name())
                 .claim("tokenType", "ACCESS")
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + jwtProperties.getAccessTokenExpiry()))
-                .signWith(getKey());
-
-        if (role != null) {
-            builder.claim("role", role.name());
-        }
-
-        return builder.compact();
+                .signWith(getKey())
+                .compact();
     }
 
-    public String generateRefreshToken(Long userId, UserType userType) {
+    public String generateRefreshToken(Long userId) {
         return Jwts.builder()
                 .claim("userId", userId)
-                .claim("userType", userType.name())
                 .claim("tokenType", "REFRESH")
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + jwtProperties.getRefreshTokenExpiry()))
@@ -48,18 +39,6 @@ public class JwtProvider {
 
     public boolean isRefreshToken(String token) {
         return "REFRESH".equals(parse(token).get("tokenType", String.class));
-    }
-
-    public UserType getUserType(String token) {
-        return UserType.valueOf(parse(token).get("userType", String.class));
-    }
-
-    public Claims parse(String token) {
-        return Jwts.parser()
-                .verifyWith(getKey())
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
     }
 
     public boolean isValid(String token) {
@@ -75,8 +54,12 @@ public class JwtProvider {
         return parse(token).get("userId", Long.class);
     }
 
-    public String getRole(String token) {
-        return parse(token).get("role", String.class);
+    public Claims parse(String token) {
+        return Jwts.parser()
+                .verifyWith(getKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     private SecretKey getKey() {

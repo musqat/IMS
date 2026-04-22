@@ -1,12 +1,10 @@
 package com.ims.user.service;
 
-import com.ims.global.common.UserType;
 import com.ims.global.exception.ImsException;
 import com.ims.global.security.JwtProvider;
 import com.ims.user.dto.request.LoginRequest;
 import com.ims.user.dto.request.RegisterRequest;
 import com.ims.user.dto.response.LoginResponse;
-import com.ims.user.dto.response.RegisterResponse;
 import com.ims.user.entity.User;
 import com.ims.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -40,15 +38,21 @@ class UserServiceTest {
     void signUp_success() {
         // given
         RegisterRequest request = new RegisterRequest("test@test.com", "password123", "테스트회사");
+        User saved = User.builder().id(1L).email("test@test.com").password("encodedPassword")
+                .companyName("테스트회사").companyCode("1000000001").build();
         given(userRepository.existsByEmail(request.email())).willReturn(false);
         given(userRepository.existsByCompanyCode(any())).willReturn(false);
         given(passwordEncoder.encode(request.password())).willReturn("encodedPassword");
+        given(userRepository.save(any())).willReturn(saved);
+        given(jwtProvider.generateAccessToken(1L)).willReturn("accessToken");
+        given(jwtProvider.generateRefreshToken(1L)).willReturn("refreshToken");
 
         // when
-        RegisterResponse response = userService.signUp(request);
+        LoginResponse response = userService.signUp(request);
 
         // then
-        assertThat(response.companyCode()).isNotNull();
+        assertThat(response.accessToken()).isEqualTo("accessToken");
+        assertThat(response.refreshToken()).isEqualTo("refreshToken");
         then(userRepository).should(times(1)).save(any(User.class));
     }
 
@@ -76,8 +80,8 @@ class UserServiceTest {
         LoginRequest request = new LoginRequest("test@test.com", "encodedPassword");
         given(userRepository.findByEmail(request.email())).willReturn(Optional.of(user));
         given(passwordEncoder.matches(request.password(), user.getPassword())).willReturn(true);
-        given(jwtProvider.generateAccessToken(any(), any(), any())).willReturn("accessToken");
-        given(jwtProvider.generateRefreshToken(any(), any())).willReturn("refreshToken");
+        given(jwtProvider.generateAccessToken(any())).willReturn("accessToken");
+        given(jwtProvider.generateRefreshToken(any())).willReturn("refreshToken");
 
         // when
         LoginResponse response = userService.login(request);
@@ -100,9 +104,8 @@ class UserServiceTest {
         given(jwtProvider.isValid("refreshToken")).willReturn(true);
         given(jwtProvider.isRefreshToken("refreshToken")).willReturn(true);
         given(jwtProvider.getUserId("refreshToken")).willReturn(1L);
-        given(jwtProvider.getUserType("refreshToken")).willReturn(UserType.USER);
         given(userRepository.findById(1L)).willReturn(Optional.of(user));
-        given(jwtProvider.generateAccessToken(1L, UserType.USER, null)).willReturn("newAccessToken");
+        given(jwtProvider.generateAccessToken(1L)).willReturn("newAccessToken");
 
         // when
         String result = userService.refresh("refreshToken");
