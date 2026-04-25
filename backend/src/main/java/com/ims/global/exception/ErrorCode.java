@@ -30,7 +30,19 @@ public enum ErrorCode {
 
     // warehouse
     WAREHOUSE_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 창고입니다."),
-    WAREHOUSE_NOT_OWNED(HttpStatus.FORBIDDEN, "소유자와 창고가 맞지 않습니다.");
+    WAREHOUSE_NOT_OWNED(HttpStatus.FORBIDDEN, "소유자와 창고가 맞지 않습니다."),
+
+    // item
+    ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 품목입니다."),
+    DUPLICATE_ITEM_CODE(HttpStatus.CONFLICT, "이미 사용 중인 품목 코드입니다."),
+    ITEM_NOT_OWNED(HttpStatus.FORBIDDEN, "해당 품목에 대한 권한이 없습니다."),
+    ITEM_IN_USE_BY_BOM(HttpStatus.CONFLICT, "BOM에 등록된 품목은 삭제할 수 없습니다."),
+
+    // bom
+    BOM_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 BOM입니다."),
+    DUPLICATE_BOM(HttpStatus.CONFLICT, "이미 등록된 BOM 관계입니다."),
+    BOM_CIRCULAR_REFERENCE(HttpStatus.BAD_REQUEST, "BOM 순환 참조가 발생합니다."),
+    BOM_SELF_REFERENCE(HttpStatus.BAD_REQUEST, "자기 자신을 하위 품목으로 등록할 수 없습니다.");
 
     private final HttpStatus status;
     private final String message;

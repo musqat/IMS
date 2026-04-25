@@ -24,8 +24,7 @@ public class WarehouseController {
     private final WarehouseService warehouseService;
     private final WarehouseShareService warehouseShareService;
 
-    // ===== 창고 CRUD =====
-
+    /** 창고 생성 */
     @PostMapping
     public ResponseEntity<ApiResponse<WarehouseResponse>> create(
             @AuthenticationPrincipal Long userId,
@@ -35,6 +34,7 @@ public class WarehouseController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
 
+    /** 내 창고 전체 조회 */
     @GetMapping
     public ResponseEntity<ApiResponse<List<WarehouseResponse>>> getList(
             @AuthenticationPrincipal Long userId
@@ -43,6 +43,7 @@ public class WarehouseController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    /** 창고 단건 조회 */
     @GetMapping("/{warehouseId}")
     public ResponseEntity<ApiResponse<WarehouseResponse>> getOne(
             @AuthenticationPrincipal Long userId,
@@ -52,6 +53,7 @@ public class WarehouseController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    /** 창고 삭제 */
     @DeleteMapping("/{warehouseId}")
     public ResponseEntity<ApiResponse<Void>> delete(
             @AuthenticationPrincipal Long userId,
@@ -61,8 +63,7 @@ public class WarehouseController {
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
-    // ===== 창고 공유 =====
-
+    /** 창고 공유 부여 */
     @PostMapping("/{warehouseId}/shares")
     public ResponseEntity<ApiResponse<WarehouseShareResponse>> share(
             @AuthenticationPrincipal Long userId,
@@ -73,6 +74,7 @@ public class WarehouseController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
 
+    /** 창고 공유 회수 */
     @DeleteMapping("/{warehouseId}/shares")
     public ResponseEntity<ApiResponse<Void>> revoke(
             @AuthenticationPrincipal Long userId,
@@ -83,6 +85,7 @@ public class WarehouseController {
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
+    /** 공유받은 창고 목록 조회 */
     @GetMapping("/shared")
     public ResponseEntity<ApiResponse<List<WarehouseShareResponse>>> getShared(
             @AuthenticationPrincipal Long userId
