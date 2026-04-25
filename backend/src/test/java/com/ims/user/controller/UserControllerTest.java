@@ -8,6 +8,7 @@ import com.ims.global.security.JwtProvider;
 import com.ims.user.dto.request.LoginRequest;
 import com.ims.user.dto.request.RegisterRequest;
 import com.ims.user.dto.response.LoginResponse;
+import com.ims.user.dto.response.RegisterResponse;
 import com.ims.user.service.UserService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,13 +43,14 @@ class UserControllerTest {
     @DisplayName("회원가입 성공")
     void register_success() throws Exception {
         RegisterRequest request = new RegisterRequest("test@test.com", "password", "테스트회사");
-        given(userService.signUp(any())).willReturn(new LoginResponse("accessToken", "refreshToken"));
+        given(userService.signUp(any())).willReturn(new RegisterResponse(1L, "test@test.com", "테스트회사", "1000000001"));
 
         mockMvc.perform(post("/api/v1/users/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.data.accessToken").value("accessToken"));
+                .andExpect(jsonPath("$.data.email").value("test@test.com"))
+                .andExpect(jsonPath("$.data.companyCode").value("1000000001"));
     }
 
     @Test

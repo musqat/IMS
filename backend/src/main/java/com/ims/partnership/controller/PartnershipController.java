@@ -20,7 +20,7 @@ public class PartnershipController {
 
     private final PartnershipService partnershipService;
 
-    // 초대 발송 → 토큰 반환
+    /** 초대 발송 — 토큰 반환 */
     @PostMapping("/invite")
     public ResponseEntity<ApiResponse<String>> invite(
             @AuthenticationPrincipal Long userId,
@@ -30,7 +30,7 @@ public class PartnershipController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(token));
     }
 
-    // 초대 수락
+    /** 초대 수락 */
     @PostMapping("/accept")
     public ResponseEntity<ApiResponse<PartnershipResponse>> accept(
             @AuthenticationPrincipal Long userId,
@@ -40,7 +40,7 @@ public class PartnershipController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    // 내가 본사인 경우 → 하청 목록
+    /** 하청 목록 조회 (본사 기준) */
     @GetMapping("/subs")
     public ResponseEntity<ApiResponse<List<PartnershipResponse>>> getSubList(
             @AuthenticationPrincipal Long userId
@@ -49,7 +49,7 @@ public class PartnershipController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    // 내가 하청인 경우 → 본사 목록
+    /** 본사 목록 조회 (하청 기준) */
     @GetMapping("/mains")
     public ResponseEntity<ApiResponse<List<PartnershipResponse>>> getMainList(
             @AuthenticationPrincipal Long userId
