@@ -42,7 +42,12 @@ public enum ErrorCode {
     BOM_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 BOM입니다."),
     DUPLICATE_BOM(HttpStatus.CONFLICT, "이미 등록된 BOM 관계입니다."),
     BOM_CIRCULAR_REFERENCE(HttpStatus.BAD_REQUEST, "BOM 순환 참조가 발생합니다."),
-    BOM_SELF_REFERENCE(HttpStatus.BAD_REQUEST, "자기 자신을 하위 품목으로 등록할 수 없습니다.");
+    BOM_SELF_REFERENCE(HttpStatus.BAD_REQUEST, "자기 자신을 하위 품목으로 등록할 수 없습니다."),
+
+    // inventory
+    INVENTORY_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 재고 항목입니다."),
+    DUPLICATE_INVENTORY(HttpStatus.CONFLICT, "해당 창고에 이미 등록된 품목입니다."),
+    INSUFFICIENT_STOCK(HttpStatus.BAD_REQUEST, "재고가 부족합니다.");
 
     private final HttpStatus status;
     private final String message;

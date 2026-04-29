@@ -18,6 +18,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
@@ -148,7 +149,7 @@ class BomServiceTest {
 
         // then
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).childItemId()).isEqualTo(itemB.getId());
+        assertThat(result.getFirst().childItemId()).isEqualTo(itemB.getId());
     }
 
     @Test
@@ -186,5 +187,39 @@ class BomServiceTest {
         // when & then
         assertThatThrownBy(() -> bomService.deleteBom(222L, 10L))
                 .isInstanceOf(ImsException.class);
+    }
+
+    @Test
+    @DisplayName("getFullBomTree - 단일 레벨: A → B(qty=2)")
+    void getFullBomTree_singleLevel() {
+        // given
+        Bom bomAB = Bom.builder().id(10L).parent(itemA).child(itemB).quantity(2).build();
+        given(bomRepository.findAllByParentId(itemA.getId())).willReturn(List.of(bomAB));
+        given(bomRepository.findAllByParentId(itemB.getId())).willReturn(List.of());
+
+        // when
+        Map<Long, Integer> result = bomService.getFullBomTree(itemA.getId());
+
+        // then
+        assertThat(result).hasSize(1);
+        assertThat(result.get(itemB.getId())).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("getFullBomTree - 다단계: A → B(2) → C(3), C 누적 수량 = 6")
+    void getFullBomTree_multiLevel() {
+        // given
+        Bom bomAB = Bom.builder().id(10L).parent(itemA).child(itemB).quantity(2).build();
+        Bom bomBC = Bom.builder().id(11L).parent(itemB).child(itemC).quantity(3).build();
+        given(bomRepository.findAllByParentId(itemA.getId())).willReturn(List.of(bomAB));
+        given(bomRepository.findAllByParentId(itemB.getId())).willReturn(List.of(bomBC));
+        given(bomRepository.findAllByParentId(itemC.getId())).willReturn(List.of());
+
+        // when
+        Map<Long, Integer> result = bomService.getFullBomTree(itemA.getId());
+
+        // then
+        assertThat(result).containsEntry(itemB.getId(), 2);
+        assertThat(result).containsEntry(itemC.getId(), 6);
     }
 }
