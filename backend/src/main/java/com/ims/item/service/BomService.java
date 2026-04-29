@@ -12,8 +12,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -26,10 +28,7 @@ public class BomService {
 
     /**
      * BOM 등록
-     * - parent/child Item 조회 및 각각 소유자 검증 → ITEM_NOT_OWNED
-     * - 자기 자신 참조 방지 (parentItemId == childItemId) → BOM_SELF_REFERENCE
-     * - 중복 BOM 방지 → DUPLICATE_BOM
-     * - 순환 참조 방지: hasCycle(childItemId, parentItemId, new HashSet<>()) → BOM_CIRCULAR_REFERENCE
+     * - 자기참조, 소유자, 중복, 순환참조 검증
      * - BOM 저장 후 응답 반환
      */
     @Transactional
@@ -100,8 +99,7 @@ public class BomService {
 
     /**
      * 순환 참조 탐색 (DFS)
-     * - targetId에서 출발해 BOM 트리를 내려가며 searchId가 등장하면 true 반환
-     * - visited로 이미 방문한 노드 건너뜀 (무한 루프 방지)
+     * - targetId 하위 트리에 searchId가 있으면 true
      */
     private boolean hasCycle(Long targetId, Long searchId, Set<Long> visited) {
         if (visited.contains(targetId)) return false;
@@ -116,5 +114,26 @@ public class BomService {
         }
 
         return false;
+    }
+
+    /**
+     * BOM 트리 전체 탐색 → 완성품 1개 기준 필요 수량 플랫 맵 반환
+     * - 예: A → B(2) → C(3) 이면 { B: 2, C: 6 }
+     */
+    public Map<Long, Integer> getFullBomTree(Long parentItemId) {
+        Map<Long, Integer> result = new HashMap<>();
+        collectBomTree(parentItemId, 1, result);
+        return result;
+    }
+
+    /** getFullBomTree DFS 재귀 헬퍼 */
+    private void collectBomTree(Long itemId, int multiplier, Map<Long, Integer> result) {
+        List<Bom> boms = bomRepository.findAllByParentId(itemId);
+        for (Bom bom : boms) {
+            Long childId = bom.getChild().getId();
+            int qty = bom.getQuantity() * multiplier;
+            result.merge(childId, qty, Integer::sum);
+            collectBomTree(childId, qty, result);
+        }
     }
 }
