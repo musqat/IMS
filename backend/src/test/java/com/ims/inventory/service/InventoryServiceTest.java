@@ -62,7 +62,7 @@ class InventoryServiceTest {
     void setUp() {
         owner = User.builder().id(1L).email("test@test.com").password("pw").companyName("테스트").companyCode("TC001").build();
         warehouse = Warehouse.builder().id(1L).owner(owner).name("서울창고").build();
-        itemBike = Item.builder().id(10L).owner(owner).itemCode("BIKE-001").name("A자전거").type(ItemType.FINISHED).build();
+        itemBike = Item.builder().id(10L).owner(owner).itemCode("BIKE-001").name("A자전거").type(ItemType.PRODUCT).build();
         itemTire = Item.builder().id(20L).owner(owner).itemCode("TIRE-001").name("타이어").type(ItemType.PART).build();
         itemFrame = Item.builder().id(30L).owner(owner).itemCode("FRAME-001").name("프레임").type(ItemType.PART).build();
         inventory = Inventory.builder().id(100L).warehouse(warehouse).item(itemBike).quantity(50).safetyStock(10).build();

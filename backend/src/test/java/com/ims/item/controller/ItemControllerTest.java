@@ -21,7 +21,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
-import java.util.Optional;
 
 import static org.mockito.BDDMockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
@@ -50,13 +49,13 @@ class ItemControllerTest {
     }
 
     private ItemResponse itemResponse() {
-        return new ItemResponse(1L, "ITEM-001", "테스트 품목", ItemType.FINISHED, null);
+        return new ItemResponse(1L, "ITEM-001", "테스트 품목", ItemType.PRODUCT, null);
     }
 
     @Test
     @DisplayName("품목 생성 성공")
     void createItem_success() throws Exception {
-        ItemCreateRequest request = new ItemCreateRequest("ITEM-001", "테스트 품목", ItemType.FINISHED, null);
+        ItemCreateRequest request = new ItemCreateRequest("ITEM-001", "테스트 품목", ItemType.PRODUCT, null);
         given(itemService.createItem(eq(1L), any())).willReturn(itemResponse());
 
         mockMvc.perform(post("/api/v1/items")
@@ -66,13 +65,13 @@ class ItemControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.itemCode").value("ITEM-001"))
                 .andExpect(jsonPath("$.data.name").value("테스트 품목"))
-                .andExpect(jsonPath("$.data.type").value("FINISHED"));
+                .andExpect(jsonPath("$.data.type").value("PRODUCT"));
     }
 
     @Test
     @DisplayName("품목 생성 실패 - 중복 itemCode")
     void createItem_duplicateCode() throws Exception {
-        ItemCreateRequest request = new ItemCreateRequest("ITEM-001", "테스트 품목", ItemType.FINISHED, null);
+        ItemCreateRequest request = new ItemCreateRequest("ITEM-001", "테스트 품목", ItemType.PRODUCT, null);
         given(itemService.createItem(eq(1L), any())).willThrow(new ImsException(ErrorCode.DUPLICATE_ITEM_CODE));
 
         mockMvc.perform(post("/api/v1/items")
@@ -85,7 +84,7 @@ class ItemControllerTest {
     @Test
     @DisplayName("품목 목록 조회 성공")
     void getItems_success() throws Exception {
-        ItemResponse response = new ItemResponse(1L, "ITEM-001", "테스트 품목", ItemType.FINISHED, null);
+        ItemResponse response = new ItemResponse(1L, "ITEM-001", "테스트 품목", ItemType.PRODUCT, null);
         given(itemService.getItems(1L)).willReturn(List.of(response));
 
         mockMvc.perform(get("/api/v1/items")
@@ -97,7 +96,7 @@ class ItemControllerTest {
     @Test
     @DisplayName("품목 단건 조회 성공")
     void getItem_success() throws Exception {
-        ItemResponse response = new ItemResponse(1L, "ITEM-001", "테스트 품목", ItemType.FINISHED, null);
+        ItemResponse response = new ItemResponse(1L, "ITEM-001", "테스트 품목", ItemType.PRODUCT, null);
         given(itemService.getItem(1L, 1L)).willReturn(response);
 
         mockMvc.perform(get("/api/v1/items/1")
@@ -109,7 +108,6 @@ class ItemControllerTest {
     @Test
     @DisplayName("품목 단건 조회 실패 - 소유자 아님")
     void getItem_notOwner() throws Exception {
-        ItemResponse response = new ItemResponse(1L, "ITEM-001", "테스트 품목", ItemType.FINISHED, null);
         given(itemService.getItem(1L, 1L)).willThrow(new ImsException(ErrorCode.ITEM_NOT_OWNED));
 
         mockMvc.perform(get("/api/v1/items/1")

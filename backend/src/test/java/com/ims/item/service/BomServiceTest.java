@@ -37,7 +37,7 @@ class BomServiceTest {
     private ItemRepository itemRepository;
 
     private User owner;
-    private Item itemA;  // FINISHED
+    private Item itemA;  // PRODUCT
     private Item itemB;  // SEMI
     private Item itemC;  // PART
 
@@ -51,13 +51,13 @@ class BomServiceTest {
                 .companyCode("TC001")
                 .build();
 
-        itemA = Item.builder().id(1L).owner(owner).itemCode("A").name("완성품A").type(ItemType.FINISHED).build();
+        itemA = Item.builder().id(1L).owner(owner).itemCode("A").name("완성품A").type(ItemType.PRODUCT).build();
         itemB = Item.builder().id(2L).owner(owner).itemCode("B").name("반제품B").type(ItemType.SEMI).build();
         itemC = Item.builder().id(3L).owner(owner).itemCode("C").name("부품C").type(ItemType.PART).build();
     }
 
     @Test
-    @DisplayName("BOM 등록 성공 - A(FINISHED) → B(SEMI), quantity=2")
+    @DisplayName("BOM 등록 성공 - A(PRODUCT) → B(SEMI), quantity=2")
     void addBom_success() {
         // given
         BomCreateRequest request = new BomCreateRequest(itemB.getId(), 2);

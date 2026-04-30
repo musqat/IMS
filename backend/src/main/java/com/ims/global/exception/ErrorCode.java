@@ -47,7 +47,12 @@ public enum ErrorCode {
     // inventory
     INVENTORY_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 재고 항목입니다."),
     DUPLICATE_INVENTORY(HttpStatus.CONFLICT, "해당 창고에 이미 등록된 품목입니다."),
-    INSUFFICIENT_STOCK(HttpStatus.BAD_REQUEST, "재고가 부족합니다.");
+    INSUFFICIENT_STOCK(HttpStatus.BAD_REQUEST, "재고가 부족합니다."),
+
+    // production
+    PRODUCTION_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 생산 기록입니다."),
+    PRODUCTION_NOT_CANCELLABLE(HttpStatus.BAD_REQUEST, "취소할 수 없는 생산 기록입니다."),
+    ITEM_NOT_FINISHED(HttpStatus.BAD_REQUEST, "완제품(PRODUCT) 타입의 품목만 생산 기록을 등록할 수 있습니다.");
 
     private final HttpStatus status;
     private final String message;

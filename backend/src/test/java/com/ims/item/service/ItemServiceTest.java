@@ -1,6 +1,5 @@
 package com.ims.item.service;
 
-import com.ims.global.exception.ErrorCode;
 import com.ims.global.exception.ImsException;
 import com.ims.item.dto.request.ItemCreateRequest;
 import com.ims.item.dto.response.ItemResponse;
@@ -57,7 +56,7 @@ class ItemServiceTest {
                 .owner(owner)
                 .itemCode("ITEM-001")
                 .name("테스트 품목")
-                .type(ItemType.FINISHED)
+                .type(ItemType.PRODUCT)
                 .build();
     }
 
@@ -65,7 +64,7 @@ class ItemServiceTest {
     @DisplayName("품목 생성 성공")
     void createItem_success() {
         // given
-        ItemCreateRequest request = new ItemCreateRequest("ITEM-001", "테스트 품목", ItemType.FINISHED, null);
+        ItemCreateRequest request = new ItemCreateRequest("ITEM-001", "테스트 품목", ItemType.PRODUCT, null);
         given(userRepository.findById(1L)).willReturn(Optional.of(owner));
         given(itemRepository.existsByOwnerIdAndItemCode(1L, "ITEM-001")).willReturn(false);
         given(itemRepository.save(any(Item.class))).willReturn(item);
@@ -76,14 +75,14 @@ class ItemServiceTest {
         // then
         assertThat(response.itemCode()).isEqualTo("ITEM-001");
         assertThat(response.name()).isEqualTo("테스트 품목");
-        assertThat(response.type()).isEqualTo(ItemType.FINISHED);
+        assertThat(response.type()).isEqualTo(ItemType.PRODUCT);
         then(itemRepository).should().save(any(Item.class));
     }
 
     @Test
     @DisplayName("품목 생성 실패 - 중복 itemCode")
     void createItem_duplicateCode() {
-        ItemCreateRequest request = new ItemCreateRequest("ITEM-001", "테스트 품목", ItemType.FINISHED, null);
+        ItemCreateRequest request = new ItemCreateRequest("ITEM-001", "테스트 품목", ItemType.PRODUCT, null);
         given(userRepository.findById(1L)).willReturn(Optional.of(owner));
         given(itemRepository.existsByOwnerIdAndItemCode(1L, "ITEM-001")).willReturn(true);
 
@@ -94,7 +93,7 @@ class ItemServiceTest {
     @Test
     @DisplayName("품목 생성 실패 - 존재하지 않는 User")
     void createItem_userNotFound() {
-        ItemCreateRequest request = new ItemCreateRequest("ITEM-001", "테스트 품목", ItemType.FINISHED, null);
+        ItemCreateRequest request = new ItemCreateRequest("ITEM-001", "테스트 품목", ItemType.PRODUCT, null);
         given(userRepository.findById(1L)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> itemService.createItem(1L, request))
@@ -110,7 +109,7 @@ class ItemServiceTest {
 
         assertThat(result).hasSize(1);
 
-        assertThat(result.get(0).itemCode()).isEqualTo("ITEM-001");
+        assertThat(result.getFirst().itemCode()).isEqualTo("ITEM-001");
     }
 
     @Test

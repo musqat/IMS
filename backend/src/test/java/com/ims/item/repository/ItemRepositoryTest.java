@@ -40,7 +40,7 @@ class ItemRepositoryTest {
     @Test
     @DisplayName("소유자 기준 품목 전체 조회")
     void findAllByOwnerId_success() {
-        itemRepository.save(Item.builder().owner(owner).itemCode("A-001").name("완성품A").type(ItemType.FINISHED).build());
+        itemRepository.save(Item.builder().owner(owner).itemCode("A-001").name("완성품A").type(ItemType.PRODUCT).build());
         itemRepository.save(Item.builder().owner(owner).itemCode("B-001").name("부품B").type(ItemType.PART).build());
 
         List<Item> result = itemRepository.findAllByOwnerId(owner.getId());
@@ -51,7 +51,7 @@ class ItemRepositoryTest {
     @Test
     @DisplayName("itemCode 중복 여부 - true")
     void existsByOwnerIdAndItemCode_true() {
-        itemRepository.save(Item.builder().owner(owner).itemCode("A-001").name("완성품A").type(ItemType.FINISHED).build());
+        itemRepository.save(Item.builder().owner(owner).itemCode("A-001").name("완성품A").type(ItemType.PRODUCT).build());
 
         assertThat(itemRepository.existsByOwnerIdAndItemCode(owner.getId(), "A-001")).isTrue();
     }
@@ -65,7 +65,7 @@ class ItemRepositoryTest {
     @Test
     @DisplayName("owner + itemCode로 단건 조회 성공")
     void findByOwnerIdAndItemCode_success() {
-        itemRepository.save(Item.builder().owner(owner).itemCode("A-001").name("완성품A").type(ItemType.FINISHED).build());
+        itemRepository.save(Item.builder().owner(owner).itemCode("A-001").name("완성품A").type(ItemType.PRODUCT).build());
 
         Optional<Item> result = itemRepository.findByOwnerIdAndItemCode(owner.getId(), "A-001");
 
