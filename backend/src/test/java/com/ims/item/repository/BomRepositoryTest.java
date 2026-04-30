@@ -32,7 +32,7 @@ class BomRepositoryTest {
     @Autowired
     private UserRepository userRepository;
 
-    private Item itemA;  // FINISHED
+    private Item itemA;  // PRODUCT
     private Item itemB;  // SEMI
     private Item itemC;  // PART
 
@@ -40,7 +40,7 @@ class BomRepositoryTest {
     void setUp() {
         User owner = userRepository.save(User.builder()
                 .email("owner@test.com").password("pw").companyName("테스트회사").companyCode("1000000001").build());
-        itemA = itemRepository.save(Item.builder().owner(owner).itemCode("A").name("완성품A").type(ItemType.FINISHED).build());
+        itemA = itemRepository.save(Item.builder().owner(owner).itemCode("A").name("완성품A").type(ItemType.PRODUCT).build());
         itemB = itemRepository.save(Item.builder().owner(owner).itemCode("B").name("반제품B").type(ItemType.SEMI).build());
         itemC = itemRepository.save(Item.builder().owner(owner).itemCode("C").name("부품C").type(ItemType.PART).build());
     }

@@ -90,7 +90,7 @@ class InventoryControllerTest {
         mockMvc.perform(post("/api/v1/warehouses/1/inventories/10/in")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new InboundRequest(50, "입고 메모"))))
-                .andExpect(status().is4xxClientError());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
