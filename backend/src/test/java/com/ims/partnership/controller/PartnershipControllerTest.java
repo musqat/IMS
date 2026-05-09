@@ -5,7 +5,9 @@ import com.ims.global.config.SecurityConfig;
 import com.ims.global.exception.ErrorCode;
 import com.ims.global.exception.ImsException;
 import com.ims.global.security.JwtProvider;
+import com.ims.partnership.dto.request.AliasRequest;
 import com.ims.partnership.dto.request.InviteRequest;
+import com.ims.partnership.dto.response.InviteResponse;
 import com.ims.partnership.dto.response.PartnershipResponse;
 import com.ims.partnership.service.PartnershipService;
 import org.junit.jupiter.api.DisplayName;
@@ -53,14 +55,15 @@ class PartnershipControllerTest {
     @DisplayName("초대 발송 성공")
     void invite_success() throws Exception {
         InviteRequest request = new InviteRequest("2000000001");
-        given(partnershipService.invite(eq(1L), any())).willReturn("invite-token-uuid");
+        InviteResponse inviteResponse = new InviteResponse(1L, "invite-token-uuid");
+        given(partnershipService.invite(eq(1L), any())).willReturn(inviteResponse);
 
         mockMvc.perform(post("/api/v1/partnerships/invite")
                         .with(authentication(auth(1L)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.data").value("invite-token-uuid"));
+                .andExpect(jsonPath("$.data.inviteToken").value("invite-token-uuid"));
     }
 
     @Test
@@ -80,7 +83,7 @@ class PartnershipControllerTest {
     @Test
     @DisplayName("초대 수락 성공")
     void accept_success() throws Exception {
-        PartnershipResponse response = new PartnershipResponse(1L, 1L, "본사", 2L, "하청", "ACCEPTED", null);
+        PartnershipResponse response = new PartnershipResponse(1L, 1L, "본사", 2L, "하청", "SUB001", "ACCEPTED", null, null);
         given(partnershipService.accept(eq(2L), eq("valid-token"))).willReturn(response);
 
         mockMvc.perform(post("/api/v1/partnerships/accept")
@@ -105,7 +108,7 @@ class PartnershipControllerTest {
     @Test
     @DisplayName("하청 목록 조회 성공")
     void getSubList_success() throws Exception {
-        PartnershipResponse response = new PartnershipResponse(1L, 1L, "본사", 2L, "하청", "ACCEPTED", null);
+        PartnershipResponse response = new PartnershipResponse(1L, 1L, "본사", 2L, "하청", "SUB001", "ACCEPTED", null, null);
         given(partnershipService.getSubList(1L)).willReturn(List.of(response));
 
         mockMvc.perform(get("/api/v1/partnerships/subs")
@@ -117,12 +120,43 @@ class PartnershipControllerTest {
     @Test
     @DisplayName("본사 목록 조회 성공")
     void getMainList_success() throws Exception {
-        PartnershipResponse response = new PartnershipResponse(1L, 1L, "본사", 2L, "하청", "ACCEPTED", null);
+        PartnershipResponse response = new PartnershipResponse(1L, 1L, "본사", 2L, "하청", "SUB001", "ACCEPTED", null, null);
         given(partnershipService.getMainList(2L)).willReturn(List.of(response));
 
         mockMvc.perform(get("/api/v1/partnerships/mains")
                         .with(authentication(auth(2L))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].mainCompanyName").value("본사"));
+    }
+
+    @Test
+    @DisplayName("별명 설정 성공")
+    void updateAlias_success() throws Exception {
+        PartnershipResponse response = new PartnershipResponse(1L, 1L, "본사", 2L, "하청", "SUB001", "ACCEPTED", null, "우리하청");
+        given(partnershipService.updateAlias(eq(1L), eq(1L), eq("우리하청"))).willReturn(response);
+
+        mockMvc.perform(patch("/api/v1/partnerships/1/alias")
+                        .with(authentication(auth(1L)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new AliasRequest("우리하청"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.alias").value("우리하청"));
+    }
+
+    @Test
+    @DisplayName("파트너십 해제 성공")
+    void removePartnership_success() throws Exception {
+        willDoNothing().given(partnershipService).removePartnership(1L, 1L);
+
+        mockMvc.perform(delete("/api/v1/partnerships/1")
+                        .with(authentication(auth(1L))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("파트너십 해제 실패 - 미인증 401")
+    void removePartnership_unauthorized() throws Exception {
+        mockMvc.perform(delete("/api/v1/partnerships/1"))
+                .andExpect(status().isUnauthorized());
     }
 }

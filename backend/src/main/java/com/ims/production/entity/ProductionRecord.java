@@ -43,8 +43,17 @@ public class ProductionRecord {
     private LocalDateTime createdAt;
 
     /**
+     * 생산 수량 수정
+     */
+    public void updateQuantity(int newQuantity) {
+        if (this.status != ProductionStatus.PENDING) {
+            throw new ImsException(ErrorCode.PRODUCTION_NOT_MODIFIABLE);
+        }
+        this.quantity = newQuantity;
+    }
+
+    /**
      * 생산 기록 취소
-     * - PENDING 상태가 아니면 PRODUCTION_NOT_CANCELLABLE
      */
     public void cancel() {
         if (this.status != ProductionStatus.PENDING) {
@@ -55,7 +64,6 @@ public class ProductionRecord {
 
     /**
      * 결산 완료 처리
-     * - status = SETTLED
      */
     public void settle() {
         this.status = ProductionStatus.SETTLED;

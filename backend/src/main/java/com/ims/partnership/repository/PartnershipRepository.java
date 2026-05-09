@@ -9,13 +9,13 @@ import java.util.Optional;
 
 public interface PartnershipRepository extends JpaRepository<Partnership, Long> {
 
-    // 초대 토큰으로 조회 (수락 시 사용)
+    // 초대 토큰으로 조회
     Optional<Partnership> findByInviteToken(String inviteToken);
 
-    // 본사 기준 하청 목록 (ACCEPTED만)
+    // 본사 기준 하청 목록
     List<Partnership> findAllByMainIdAndStatus(Long mainId, PartnershipStatus status);
 
-    // 하청 기준 본사 목록 (ACCEPTED만)
+    // 하청 기준 본사 목록
     List<Partnership> findAllBySubIdAndStatus(Long subId, PartnershipStatus status);
 
     // 중복 초대 방지 (PENDING 포함 이미 관계 존재 여부)

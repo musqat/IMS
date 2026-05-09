@@ -1,24 +1,33 @@
 package com.ims.production.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ims.global.exception.ErrorCode;
+import com.ims.global.exception.ImsException;
 import com.ims.inventory.entity.Inventory;
-import com.ims.inventory.entity.InventoryHistory;
+import com.ims.global.support.InventoryHistoryWriter;
 import com.ims.inventory.entity.InventoryHistoryType;
-import com.ims.inventory.repository.InventoryHistoryRepository;
 import com.ims.inventory.repository.InventoryRepository;
+import com.ims.item.entity.Item;
+import com.ims.item.repository.ItemRepository;
 import com.ims.item.service.BomService;
 import com.ims.production.entity.ProductionRecord;
+import com.ims.production.entity.ProductionStatus;
 import com.ims.production.entity.Settlement;
 import com.ims.production.entity.SettlementResult;
+import com.ims.production.repository.ProductionRepository;
 import com.ims.production.repository.SettlementRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -26,57 +35,90 @@ import java.util.Optional;
 public class SettlementService {
 
     private final BomService bomService;
+    private final ItemRepository itemRepository;
     private final InventoryRepository inventoryRepository;
-    private final InventoryHistoryRepository inventoryHistoryRepository;
+    private final InventoryHistoryWriter inventoryHistoryWriter;
+    private final ProductionRepository productionRepository;
     private final SettlementRepository settlementRepository;
     private final ObjectMapper objectMapper;
 
     /**
      * 생산 기록 결산 (배치에서 호출)
-     * - bomService.getFullBomTree(record.getItem().getId()) → 부품별 필요 수량 맵
-     * - 각 부품에 대해: 필요 수량 = BOM수량 * record.getQuantity()
-     * - 재고 조회 → 부족 시 anomalyMap에 기록, 가능한 수량만큼만 차감
-     * - 차감 시 InventoryHistory(PRODUCTION_DEDUCTION) 저장
-     * - anomalyMap 비어있으면 SUCCESS, 아니면 ANOMALY
-     * - record.settle() 호출 후 Settlement 저장 반환
+     * - REQUIRES_NEW: 레코드별 독립 트랜잭션 — 한 건 실패가 다른 결산 롤백하지 않음
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Settlement settle(ProductionRecord record) {
-        Map<Long, Integer> bom = bomService.getFullBomTree(record.getItem().getId());
+        if (record.getStatus() != ProductionStatus.PENDING) {
+            throw new ImsException(ErrorCode.PRODUCTION_ALREADY_SETTLED);
+        }
+
+        // BOM 트리 탐색 실패 시(깊이 초과 등) FAILED로 결산 — 배치 무한 재시도 방지
+        Map<Long, Long> bom;
+        try {
+            bom = bomService.getFullBomTree(record.getItem().getId(), record.getItem().getOwner().getId());
+        } catch (ImsException e) {
+            record.settle();
+            productionRepository.save(record);
+            String anomalyDetail;
+            try {
+                anomalyDetail = objectMapper.writeValueAsString(Map.of("error", e.getErrorCode().getMessage()));
+            } catch (Exception jsonEx) {
+                anomalyDetail = "{\"error\":\"직렬화 실패\"}";
+            }
+            return settlementRepository.save(Settlement.builder()
+                    .productionRecord(record)
+                    .result(SettlementResult.FAILED)
+                    .anomalyDetail(anomalyDetail)
+                    .build());
+        }
+
         Map<String, Object> anomalyMap = new HashMap<>();
 
-        // 1. 부품별 재고 차감
-        for (Map.Entry<Long, Integer> entry : bom.entrySet()) {
+        // 1. 부품 재고 비관적 락 일괄 조회 — 동시 결산 시 음수 재고 방지
+        List<Long> partIds = new ArrayList<>(bom.keySet());
+        Map<Long, Inventory> inventoryMap = inventoryRepository
+                .findAllByWarehouseIdAndItemIdInForUpdate(record.getWarehouse().getId(), partIds)
+                .stream()
+                .collect(Collectors.toMap(inv -> inv.getItem().getId(), Function.identity()));
+
+        // 부품 ID → itemCode 맵
+        Map<Long, String> itemCodeMap = itemRepository.findAllById(partIds)
+                .stream()
+                .collect(Collectors.toMap(Item::getId, Item::getItemCode));
+
+        // 2. 부품별 재고 차감
+        for (Map.Entry<Long, Long> entry : bom.entrySet()) {
             Long partId = entry.getKey();
-            int required = entry.getValue() * record.getQuantity();
+            long required = entry.getValue() * record.getQuantity();
+            String itemCode = itemCodeMap.getOrDefault(partId, "ID:" + partId);
 
-            Optional<Inventory> invOpt = inventoryRepository
-                    .findByWarehouseIdAndItemId(record.getWarehouse().getId(), partId);
+            Inventory inventory = inventoryMap.get(partId);
 
-            if (invOpt.isEmpty()) {
+            if (inventory == null) {
                 // 재고 항목 자체가 없음
-                anomalyMap.put(String.valueOf(partId), Map.of("required", required, "stock", 0));
+                anomalyMap.put(itemCode, Map.of("required", required, "stock", 0));
                 continue;
             }
 
-            Inventory inventory = invOpt.get();
             int stock = inventory.getQuantity();
 
             if (stock < required) {
                 // 재고 부족 → 가능한 수량만 차감
-                anomalyMap.put(String.valueOf(partId), Map.of("required", required, "stock", stock));
+                // (required > Integer.MAX_VALUE 이면 stock(int) < required 항상 성립 → 이 브랜치에서 처리)
+                anomalyMap.put(itemCode, Map.of("required", required, "stock", stock));
                 inventory.deduct(stock);
-                saveHistory(inventory, -stock);
+                inventoryHistoryWriter.save(inventory, InventoryHistoryType.PRODUCTION_DEDUCTION, -stock, "생산 결산 차감");
             } else {
-                inventory.deduct(required);
-                saveHistory(inventory, -required);
+                // stock >= required 이고 stock 은 int(≤ MAX_INT) → required ≤ MAX_INT 보장 → (int) 캐스트 안전
+                inventory.deduct((int) required);
+                inventoryHistoryWriter.save(inventory, InventoryHistoryType.PRODUCTION_DEDUCTION, (int) -required, "생산 결산 차감");
             }
         }
 
-        // 2. 결과 판정
+        // 3. 결과 판정
         SettlementResult result = anomalyMap.isEmpty() ? SettlementResult.SUCCESS : SettlementResult.ANOMALY;
 
-        // 3. anomalyDetail 직렬화
+        // 4. anomalyDetail 직렬화
         String anomalyDetail = null;
         if (!anomalyMap.isEmpty()) {
             try {
@@ -87,8 +129,9 @@ public class SettlementService {
             }
         }
 
-        // 4. 결산 완료 처리
+        // 5. 결산 완료 처리
         record.settle();
+        productionRepository.save(record);
 
         return settlementRepository.save(Settlement.builder()
                 .productionRecord(record)
@@ -97,16 +140,4 @@ public class SettlementService {
                 .build());
     }
 
-    /** InventoryHistory(PRODUCTION_DEDUCTION) 저장 헬퍼 */
-    private void saveHistory(Inventory inventory, int delta) {
-        InventoryHistory history = InventoryHistory
-                .builder()
-                .inventory(inventory)
-                .type(InventoryHistoryType.PRODUCTION_DEDUCTION)
-                .delta(delta)
-                .memo("생산 결산 차감")
-                .build();
-
-        inventoryHistoryRepository.save(history);
-    }
 }

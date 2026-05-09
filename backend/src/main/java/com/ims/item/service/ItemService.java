@@ -2,6 +2,7 @@ package com.ims.item.service;
 
 import com.ims.global.exception.ErrorCode;
 import com.ims.global.exception.ImsException;
+import com.ims.global.support.DomainValidator;
 import com.ims.item.dto.request.ItemCreateRequest;
 import com.ims.item.dto.response.ItemResponse;
 import com.ims.item.entity.Item;
@@ -23,11 +24,12 @@ public class ItemService {
     private final ItemRepository itemRepository;
     private final UserRepository userRepository;
     private final BomRepository bomRepository;
+    private final DomainValidator domainValidator;
 
     /**
      * 품목 생성
      * - User 조회
-     * - itemCode 중복 확인 (owner + itemCode UK) → DUPLICATE_ITEM_CODE
+     * - itemCode 중복 확인
      * - 품목 저장 후 응답 반환
      */
     @Transactional
@@ -59,33 +61,22 @@ public class ItemService {
 
     /**
      * 품목 단건 조회
-     * - ITEM_NOT_FOUND, ITEM_NOT_OWNED
+     * - 소유자 검증 후 단건 반환
      */
     public ItemResponse getItem(Long userId, Long itemId) {
-        Item item = itemRepository.findById(itemId)
-                .orElseThrow(() -> new ImsException(ErrorCode.ITEM_NOT_FOUND));
-
-        if (!item.getOwner().getId().equals(userId)) {
-            throw new ImsException(ErrorCode.ITEM_NOT_OWNED);
-        }
-
+        Item item = domainValidator.getOwnedItem(userId, itemId);
         return ItemResponse.from(item);
     }
 
     /**
      * 품목 삭제
-     * - 소유자 검증 → ITEM_NOT_OWNED
-     * - BOM parent/child 참조 확인 → ITEM_IN_USE_BY_BOM
+     * - 소유자 검증
+     * - BOM parent/child 참조 여부 확인
      * - 검증 통과 시 삭제
      */
     @Transactional
     public void deleteItem(Long userId, Long itemId) {
-        Item item = itemRepository.findById(itemId)
-                .orElseThrow(() -> new ImsException(ErrorCode.ITEM_NOT_FOUND));
-
-        if (!item.getOwner().getId().equals(userId)) {
-            throw new ImsException(ErrorCode.ITEM_NOT_OWNED);
-        }
+        Item item = domainValidator.getOwnedItem(userId, itemId);
 
         if (bomRepository.existsByParentId(itemId) || bomRepository.existsByChildId(itemId)) {
             throw new ImsException(ErrorCode.ITEM_IN_USE_BY_BOM);

@@ -1,6 +1,8 @@
 package com.ims.warehouse.service;
 
+import com.ims.global.exception.ErrorCode;
 import com.ims.global.exception.ImsException;
+import com.ims.global.support.DomainValidator;
 import com.ims.partnership.service.PartnershipService;
 import com.ims.user.entity.User;
 import com.ims.user.repository.UserRepository;
@@ -38,6 +40,9 @@ class WarehouseShareServiceTest {
     private WarehouseRepository warehouseRepository;
 
     @Mock
+    private DomainValidator domainValidator;
+
+    @Mock
     private UserRepository userRepository;
 
     @Mock
@@ -64,7 +69,7 @@ class WarehouseShareServiceTest {
     @Test
     @DisplayName("창고 공유 성공 - 신규 생성")
     void share_success_new() {
-        given(warehouseRepository.findById(1L)).willReturn(Optional.of(warehouse));
+        given(domainValidator.getOwnedWarehouse(1L, 1L)).willReturn(warehouse);
         given(userRepository.findByCompanyCode("2000000001")).willReturn(Optional.of(target));
         given(partnershipService.isPartner(1L, 2L)).willReturn(true);
         given(warehouseShareRepository.findByWarehouseIdAndSharedWithId(1L, 2L)).willReturn(Optional.empty());
@@ -82,7 +87,7 @@ class WarehouseShareServiceTest {
     void share_success_update() {
         WarehouseShare existing = WarehouseShare.builder()
                 .id(1L).warehouse(warehouse).sharedWith(target).permission(SharePermission.VIEW).build();
-        given(warehouseRepository.findById(1L)).willReturn(Optional.of(warehouse));
+        given(domainValidator.getOwnedWarehouse(1L, 1L)).willReturn(warehouse);
         given(userRepository.findByCompanyCode("2000000001")).willReturn(Optional.of(target));
         given(partnershipService.isPartner(1L, 2L)).willReturn(true);
         given(warehouseShareRepository.findByWarehouseIdAndSharedWithId(1L, 2L)).willReturn(Optional.of(existing));
@@ -97,21 +102,23 @@ class WarehouseShareServiceTest {
     @Test
     @DisplayName("창고 공유 실패 - 소유자 아님")
     void share_notOwner() {
-        given(warehouseRepository.findById(1L)).willReturn(Optional.of(warehouse));
+        given(domainValidator.getOwnedWarehouse(2L, 1L)).willThrow(new ImsException(ErrorCode.WAREHOUSE_NOT_OWNED));
 
         assertThatThrownBy(() -> warehouseShareService.share(2L, 1L, new ShareRequest("2000000001", SharePermission.VIEW)))
-                .isInstanceOf(ImsException.class);
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WAREHOUSE_NOT_OWNED);
     }
 
     @Test
     @DisplayName("창고 공유 실패 - Partnership 관계 없음")
     void share_notPartner() {
-        given(warehouseRepository.findById(1L)).willReturn(Optional.of(warehouse));
+        given(domainValidator.getOwnedWarehouse(1L, 1L)).willReturn(warehouse);
         given(userRepository.findByCompanyCode("2000000001")).willReturn(Optional.of(target));
         given(partnershipService.isPartner(1L, 2L)).willReturn(false);
 
         assertThatThrownBy(() -> warehouseShareService.share(1L, 1L, new ShareRequest("2000000001", SharePermission.VIEW)))
-                .isInstanceOf(ImsException.class);
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_PARTNER);
     }
 
     @Test
@@ -119,7 +126,7 @@ class WarehouseShareServiceTest {
     void revoke_success() {
         WarehouseShare share = WarehouseShare.builder()
                 .id(1L).warehouse(warehouse).sharedWith(target).permission(SharePermission.VIEW).build();
-        given(warehouseRepository.findById(1L)).willReturn(Optional.of(warehouse));
+        given(domainValidator.getOwnedWarehouse(1L, 1L)).willReturn(warehouse);
         given(userRepository.findByCompanyCode("2000000001")).willReturn(Optional.of(target));
         given(warehouseShareRepository.findByWarehouseIdAndSharedWithId(1L, 2L)).willReturn(Optional.of(share));
 
@@ -144,21 +151,23 @@ class WarehouseShareServiceTest {
     @Test
     @DisplayName("공유 회수 실패 - 소유자 아님")
     void revoke_notOwner() {
-        given(warehouseRepository.findById(1L)).willReturn(Optional.of(warehouse));
+        given(domainValidator.getOwnedWarehouse(2L, 1L)).willThrow(new ImsException(ErrorCode.WAREHOUSE_NOT_OWNED));
 
         assertThatThrownBy(() -> warehouseShareService.revoke(2L, 1L, "2000000001"))
-                .isInstanceOf(ImsException.class);
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WAREHOUSE_NOT_OWNED);
     }
 
     @Test
     @DisplayName("공유 회수 실패 - 공유 없음")
     void revoke_shareNotFound() {
-        given(warehouseRepository.findById(1L)).willReturn(Optional.of(warehouse));
+        given(domainValidator.getOwnedWarehouse(1L, 1L)).willReturn(warehouse);
         given(userRepository.findByCompanyCode("2000000001")).willReturn(Optional.of(target));
         given(warehouseShareRepository.findByWarehouseIdAndSharedWithId(1L, 2L)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> warehouseShareService.revoke(1L, 1L, "2000000001"))
-                .isInstanceOf(ImsException.class);
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WAREHOUSE_SHARE_NOT_FOUND);
     }
 
     @Test
@@ -178,7 +187,8 @@ class WarehouseShareServiceTest {
         given(warehouseShareRepository.findByWarehouseIdAndSharedWithId(1L, 2L)).willReturn(Optional.of(share));
 
         assertThatThrownBy(() -> warehouseShareService.checkFullAccess(2L, 1L))
-                .isInstanceOf(ImsException.class);
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WAREHOUSE_ACCESS_DENIED);
     }
 
     @Test
@@ -188,7 +198,8 @@ class WarehouseShareServiceTest {
         given(warehouseShareRepository.findByWarehouseIdAndSharedWithId(1L, 2L)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> warehouseShareService.checkFullAccess(2L, 1L))
-                .isInstanceOf(ImsException.class);
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WAREHOUSE_ACCESS_DENIED);
     }
 
     @Test
@@ -209,6 +220,46 @@ class WarehouseShareServiceTest {
         given(warehouseShareRepository.findByWarehouseIdAndSharedWithId(1L, 2L)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> warehouseShareService.checkViewAccess(2L, 1L))
-                .isInstanceOf(ImsException.class);
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WAREHOUSE_ACCESS_DENIED);
+    }
+
+    @Test
+    @DisplayName("창고 공유 실패 - companyCode에 해당하는 User 없음")
+    void share_userNotFound() {
+        // given
+        given(domainValidator.getOwnedWarehouse(1L, 1L)).willReturn(warehouse);
+        given(userRepository.findByCompanyCode("9999999999")).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> warehouseShareService.share(1L, 1L, new ShareRequest("9999999999", SharePermission.VIEW)))
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("VIEW 권한 검증 성공 - FULL 권한 공유자도 조회 통과 (VIEW 이상이면 허용)")
+    void checkViewAccess_fullPermissionUser_passes() {
+        // given: target은 FULL 권한 — VIEW 이상이면 조회 통과
+        WarehouseShare fullShare = WarehouseShare.builder()
+                .id(1L).warehouse(warehouse).sharedWith(target).permission(SharePermission.FULL).build();
+        given(warehouseRepository.findById(1L)).willReturn(Optional.of(warehouse));
+        given(warehouseShareRepository.findByWarehouseIdAndSharedWithId(1L, 2L)).willReturn(Optional.of(fullShare));
+
+        // when & then: FULL 권한도 checkViewAccess 통과
+        assertThatNoException().isThrownBy(() -> warehouseShareService.checkViewAccess(2L, 1L));
+    }
+
+    @Test
+    @DisplayName("FULL 권한 검증 성공 - FULL 권한 공유자 통과")
+    void checkFullAccess_fullPermissionUser_passes() {
+        // given: target은 FULL 권한으로 공유받은 User
+        WarehouseShare fullShare = WarehouseShare.builder()
+                .id(1L).warehouse(warehouse).sharedWith(target).permission(SharePermission.FULL).build();
+        given(warehouseRepository.findById(1L)).willReturn(Optional.of(warehouse));
+        given(warehouseShareRepository.findByWarehouseIdAndSharedWithId(1L, 2L)).willReturn(Optional.of(fullShare));
+
+        // when & then: FULL 권한자는 예외 없이 통과
+        assertThatNoException().isThrownBy(() -> warehouseShareService.checkFullAccess(2L, 1L));
     }
 }

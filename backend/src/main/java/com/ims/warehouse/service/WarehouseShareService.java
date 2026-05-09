@@ -2,6 +2,7 @@ package com.ims.warehouse.service;
 
 import com.ims.global.exception.ErrorCode;
 import com.ims.global.exception.ImsException;
+import com.ims.global.support.DomainValidator;
 import com.ims.partnership.service.PartnershipService;
 import com.ims.user.entity.User;
 import com.ims.user.repository.UserRepository;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +29,7 @@ public class WarehouseShareService {
     private final WarehouseRepository warehouseRepository;
     private final UserRepository userRepository;
     private final PartnershipService partnershipService;
+    private final DomainValidator domainValidator;
 
     /**
      * 창고 공유 부여
@@ -36,7 +39,7 @@ public class WarehouseShareService {
      */
     @Transactional
     public WarehouseShareResponse share(Long userId, Long warehouseId, ShareRequest request) {
-        Warehouse warehouse = getOwnedWarehouse(userId, warehouseId);
+        Warehouse warehouse = domainValidator.getOwnedWarehouse(userId, warehouseId);
         User target = userRepository.findByCompanyCode(request.companyCode())
                 .orElseThrow(() -> new ImsException(ErrorCode.USER_NOT_FOUND));
 
@@ -69,14 +72,14 @@ public class WarehouseShareService {
      */
     @Transactional
     public void revoke(Long userId, Long warehouseId, String companyCode) {
-        getOwnedWarehouse(userId, warehouseId);
+        domainValidator.getOwnedWarehouse(userId, warehouseId);
 
         User target = userRepository.findByCompanyCode(companyCode)
                 .orElseThrow(() -> new ImsException(ErrorCode.USER_NOT_FOUND));
 
         WarehouseShare share = warehouseShareRepository
                 .findByWarehouseIdAndSharedWithId(warehouseId, target.getId())
-                .orElseThrow(() -> new ImsException(ErrorCode.NOT_FOUND));
+                .orElseThrow(() -> new ImsException(ErrorCode.WAREHOUSE_SHARE_NOT_FOUND));
 
         warehouseShareRepository.delete(share);
     }
@@ -92,10 +95,22 @@ public class WarehouseShareService {
     }
 
     /**
+     * userId가 접근 가능한 창고 ID 목록 반환 (소유 + 공유받은 창고)
+     * - ProductionService 등에서 복잡한 EXISTS 서브쿼리 대신 IN 절로 사용
+     */
+    public List<Long> getAccessibleWarehouseIds(Long userId) {
+        List<Long> owned = warehouseRepository.findAllByOwnerId(userId)
+                .stream().map(Warehouse::getId).toList();
+        List<Long> shared = warehouseShareRepository.findAllBySharedWithId(userId)
+                .stream().map(ws -> ws.getWarehouse().getId()).toList();
+        return Stream.concat(owned.stream(), shared.stream()).distinct().toList();
+    }
+
+    /**
      * 창고 FULL 권한 검증 (다른 서비스에서 호출)
      * - 소유자면 통과
      * - WarehouseShare에 FULL 권한 있으면 통과
-     * - 없으면 FORBIDDEN 예외
+     * - 없으면 접근 거부 예외
      */
     public void checkFullAccess(Long userId, Long warehouseId) {
         Warehouse warehouse = warehouseRepository.findById(warehouseId)
@@ -105,10 +120,10 @@ public class WarehouseShareService {
 
         WarehouseShare share = warehouseShareRepository
                 .findByWarehouseIdAndSharedWithId(warehouseId, userId)
-                .orElseThrow(() -> new ImsException(ErrorCode.FORBIDDEN));
+                .orElseThrow(() -> new ImsException(ErrorCode.WAREHOUSE_ACCESS_DENIED));
 
         if (share.getPermission() != WarehouseShare.SharePermission.FULL) {
-            throw new ImsException(ErrorCode.FORBIDDEN);
+            throw new ImsException(ErrorCode.WAREHOUSE_ACCESS_DENIED);
         }
     }
 
@@ -116,7 +131,6 @@ public class WarehouseShareService {
      * 창고 조회 권한 검증 (다른 서비스에서 호출)
      * - 소유자면 통과
      * - WarehouseShare에 VIEW 또는 FULL 권한 있으면 통과
-     * - 없으면 FORBIDDEN 예외
      */
     public void checkViewAccess(Long userId, Long warehouseId) {
         Warehouse warehouse = warehouseRepository.findById(warehouseId)
@@ -125,15 +139,7 @@ public class WarehouseShareService {
         if (warehouse.getOwner().getId().equals(userId)) return;
 
         warehouseShareRepository.findByWarehouseIdAndSharedWithId(warehouseId, userId)
-                .orElseThrow(() -> new ImsException(ErrorCode.FORBIDDEN));
+                .orElseThrow(() -> new ImsException(ErrorCode.WAREHOUSE_ACCESS_DENIED));
     }
 
-    private Warehouse getOwnedWarehouse(Long userId, Long warehouseId) {
-        Warehouse warehouse = warehouseRepository.findById(warehouseId)
-                .orElseThrow(() -> new ImsException(ErrorCode.WAREHOUSE_NOT_FOUND));
-        if (!warehouse.getOwner().getId().equals(userId)) {
-            throw new ImsException(ErrorCode.WAREHOUSE_NOT_OWNED);
-        }
-        return warehouse;
-    }
 }

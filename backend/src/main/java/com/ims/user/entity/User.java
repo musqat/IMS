@@ -53,4 +53,12 @@ public class User {
     public boolean matchesPassword(String rawPassword, PasswordEncoder encoder) {
         return encoder.matches(rawPassword, this.password);
     }
+
+    public void updateCompanyName(String companyName) {
+        this.companyName = companyName;
+    }
+
+    public void updatePassword(String encodedPassword) {
+        this.password = encodedPassword;
+    }
 }

@@ -1,7 +1,9 @@
 package com.ims.partnership.controller;
 
 import com.ims.global.common.ApiResponse;
+import com.ims.partnership.dto.request.AliasRequest;
 import com.ims.partnership.dto.request.InviteRequest;
+import com.ims.partnership.dto.response.InviteResponse;
 import com.ims.partnership.dto.response.PartnershipResponse;
 import com.ims.partnership.service.PartnershipService;
 import jakarta.validation.Valid;
@@ -20,14 +22,24 @@ public class PartnershipController {
 
     private final PartnershipService partnershipService;
 
-    /** 초대 발송 — 토큰 반환 */
+    /** 초대 발송 — partnershipId + inviteToken만 반환 (보안: 토큰은 생성 시 1회만 노출) */
     @PostMapping("/invite")
-    public ResponseEntity<ApiResponse<String>> invite(
+    public ResponseEntity<ApiResponse<InviteResponse>> invite(
             @AuthenticationPrincipal Long userId,
             @RequestBody @Valid InviteRequest request
     ) {
-        String token = partnershipService.invite(userId, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(token));
+        InviteResponse response = partnershipService.invite(userId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
+    }
+
+    /** PENDING 초대 취소 (본사만 가능) */
+    @DeleteMapping("/{partnershipId}/invite")
+    public ResponseEntity<ApiResponse<Void>> cancelInvite(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long partnershipId
+    ) {
+        partnershipService.cancelInvite(userId, partnershipId);
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 
     /** 초대 수락 */
@@ -55,6 +67,27 @@ public class PartnershipController {
             @AuthenticationPrincipal Long userId
     ) {
         List<PartnershipResponse> response = partnershipService.getMainList(userId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /** 파트너십 해제 */
+    @DeleteMapping("/{partnershipId}")
+    public ResponseEntity<ApiResponse<Void>> removePartnership(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long partnershipId
+    ) {
+        partnershipService.removePartnership(userId, partnershipId);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    /** 별명(alias) 설정 */
+    @PatchMapping("/{partnershipId}/alias")
+    public ResponseEntity<ApiResponse<PartnershipResponse>> updateAlias(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long partnershipId,
+            @RequestBody @Valid AliasRequest request
+    ) {
+        PartnershipResponse response = partnershipService.updateAlias(userId, partnershipId, request.alias());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

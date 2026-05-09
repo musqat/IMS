@@ -1,6 +1,8 @@
 package com.ims.warehouse.service;
 
 import com.ims.global.exception.ImsException;
+import com.ims.global.exception.ErrorCode;
+import com.ims.global.support.DomainValidator;
 import com.ims.user.entity.User;
 import com.ims.user.repository.UserRepository;
 import com.ims.warehouse.dto.request.WarehouseCreateRequest;
@@ -32,6 +34,9 @@ class WarehouseServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private DomainValidator domainValidator;
 
     private User user;
     private Warehouse warehouse;
@@ -73,7 +78,8 @@ class WarehouseServiceTest {
         given(userRepository.findById(1L)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> warehouseService.createWarehouse(1L, new WarehouseCreateRequest("창고", null)))
-                .isInstanceOf(ImsException.class);
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_NOT_FOUND);
     }
 
     @Test
@@ -90,7 +96,7 @@ class WarehouseServiceTest {
     @Test
     @DisplayName("창고 단건 조회 성공")
     void getWarehouse_success() {
-        given(warehouseRepository.findById(1L)).willReturn(Optional.of(warehouse));
+        given(domainValidator.getOwnedWarehouse(1L, 1L)).willReturn(warehouse);
 
         WarehouseResponse response = warehouseService.getWarehouse(1L, 1L);
 
@@ -100,16 +106,17 @@ class WarehouseServiceTest {
     @Test
     @DisplayName("창고 단건 조회 실패 - 다른 소유자")
     void getWarehouse_notOwner() {
-        given(warehouseRepository.findById(1L)).willReturn(Optional.of(warehouse));
+        given(domainValidator.getOwnedWarehouse(2L, 1L)).willThrow(new ImsException(ErrorCode.WAREHOUSE_NOT_OWNED));
 
         assertThatThrownBy(() -> warehouseService.getWarehouse(2L, 1L))
-                .isInstanceOf(ImsException.class);
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WAREHOUSE_NOT_OWNED);
     }
 
     @Test
     @DisplayName("창고 삭제 성공")
     void deleteWarehouse_success() {
-        given(warehouseRepository.findById(1L)).willReturn(Optional.of(warehouse));
+        given(domainValidator.getOwnedWarehouse(1L, 1L)).willReturn(warehouse);
 
         warehouseService.deleteWarehouse(1L, 1L);
 
@@ -119,9 +126,10 @@ class WarehouseServiceTest {
     @Test
     @DisplayName("창고 삭제 실패 - 소유자 아님")
     void deleteWarehouse_notOwner() {
-        given(warehouseRepository.findById(1L)).willReturn(Optional.of(warehouse));
+        given(domainValidator.getOwnedWarehouse(2L, 1L)).willThrow(new ImsException(ErrorCode.WAREHOUSE_NOT_OWNED));
 
         assertThatThrownBy(() -> warehouseService.deleteWarehouse(2L, 1L))
-                .isInstanceOf(ImsException.class);
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WAREHOUSE_NOT_OWNED);
     }
 }

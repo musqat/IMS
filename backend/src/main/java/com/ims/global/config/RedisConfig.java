@@ -9,8 +9,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 public class RedisConfig {
 
     /**
-     * StringRedisTemplate — key/value 모두 String.
-     * Refresh Token: key = "refresh:{userId}", value = refreshToken, TTL = 2주
+     * Refresh Token: key = userId", value = refreshToken, TTL = 2주
      */
     @Bean
     public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory connectionFactory) {

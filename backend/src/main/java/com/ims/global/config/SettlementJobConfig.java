@@ -5,6 +5,8 @@ import com.ims.production.entity.ProductionStatus;
 import com.ims.production.entity.Settlement;
 import com.ims.production.repository.ProductionRepository;
 import com.ims.production.service.SettlementService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
@@ -13,13 +15,17 @@ import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
-import org.springframework.batch.item.ItemProcessor;
-import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.support.ListItemReader;
+import org.springframework.batch.core.step.tasklet.Tasklet;
+import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import java.util.List;
+
+/**
+ * 자정 결산 배치 설정
+ */
 @Slf4j
 @Configuration
 @RequiredArgsConstructor
@@ -29,6 +35,9 @@ public class SettlementJobConfig {
     private final PlatformTransactionManager transactionManager;
     private final ProductionRepository productionRepository;
     private final SettlementService settlementService;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Bean
     public Job settlementJob() {
@@ -40,30 +49,29 @@ public class SettlementJobConfig {
     @Bean
     public Step settlementStep() {
         return new StepBuilder("settlementStep", jobRepository)
-                .<ProductionRecord, Settlement>chunk(10, transactionManager)
-                .reader(settlementItemReader())
-                .processor(settlementItemProcessor())
-                .writer(settlementItemWriter())
+                .tasklet(settlementTasklet(), transactionManager)
                 .build();
     }
 
+    /**
+     * 결산 Tasklet
+     */
     @Bean
     @StepScope
-    public ListItemReader<ProductionRecord> settlementItemReader() {
-        return new ListItemReader<>(
-                productionRepository.findAllByStatus(ProductionStatus.PENDING)
-        );
-    }
+    public Tasklet settlementTasklet() {
+        return (contribution, chunkContext) -> {
+            List<ProductionRecord> pending = productionRepository.findAllByStatus(ProductionStatus.PENDING);
+            log.info("[결산 배치] 대상 레코드 수: {}", pending.size());
 
-    @Bean
-    public ItemProcessor<ProductionRecord, Settlement> settlementItemProcessor() {
-        return settlementService::settle;
-    }
+            for (ProductionRecord record : pending) {
+                Settlement settlement = settlementService.settle(record);
+                log.info("[결산 배치] 완료 - recordId={}, result={}",
+                        record.getId(), settlement.getResult());
+                // REQUIRES_NEW 커밋 후 1차 캐시 초기화 — 대량 처리 시 메모리 누수 방지
+                entityManager.clear();
+            }
 
-    @Bean
-    public ItemWriter<Settlement> settlementItemWriter() {
-        return items -> items.forEach(s ->
-                log.info("결산 완료 - productionRecordId={}, result={}", s.getProductionRecord().getId(), s.getResult())
-        );
+            return RepeatStatus.FINISHED;
+        };
     }
 }

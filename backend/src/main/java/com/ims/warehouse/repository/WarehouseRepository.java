@@ -7,5 +7,6 @@ import java.util.List;
 
 public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
 
+    /** 소유자 창고 목록 전체 조회 */
     List<Warehouse> findAllByOwnerId(Long ownerId);
 }

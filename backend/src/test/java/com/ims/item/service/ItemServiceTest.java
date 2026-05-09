@@ -1,6 +1,8 @@
 package com.ims.item.service;
 
+import com.ims.global.exception.ErrorCode;
 import com.ims.global.exception.ImsException;
+import com.ims.global.support.DomainValidator;
 import com.ims.item.dto.request.ItemCreateRequest;
 import com.ims.item.dto.response.ItemResponse;
 import com.ims.item.entity.Item;
@@ -37,6 +39,9 @@ class ItemServiceTest {
 
     @Mock
     private BomRepository bomRepository;
+
+    @Mock
+    private DomainValidator domainValidator;
 
     private User owner;
     private Item item;
@@ -87,7 +92,8 @@ class ItemServiceTest {
         given(itemRepository.existsByOwnerIdAndItemCode(1L, "ITEM-001")).willReturn(true);
 
         assertThatThrownBy(() -> itemService.createItem(1L, request))
-                .isInstanceOf(ImsException.class);
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.DUPLICATE_ITEM_CODE);
     }
 
     @Test
@@ -97,7 +103,8 @@ class ItemServiceTest {
         given(userRepository.findById(1L)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> itemService.createItem(1L, request))
-                .isInstanceOf(ImsException.class);
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_NOT_FOUND);
     }
 
     @Test
@@ -108,14 +115,13 @@ class ItemServiceTest {
         List<ItemResponse> result = itemService.getItems(1L);
 
         assertThat(result).hasSize(1);
-
         assertThat(result.getFirst().itemCode()).isEqualTo("ITEM-001");
     }
 
     @Test
     @DisplayName("품목 단건 조회 성공")
     void getItem_success() {
-        given(itemRepository.findById(1L)).willReturn(Optional.of(item));
+        given(domainValidator.getOwnedItem(1L, 1L)).willReturn(item);
 
         ItemResponse result = itemService.getItem(1L, 1L);
 
@@ -126,16 +132,17 @@ class ItemServiceTest {
     @Test
     @DisplayName("품목 단건 조회 실패 - 다른 소유자")
     void getItem_notOwner() {
-        given(itemRepository.findById(1L)).willReturn(Optional.of(item));
+        given(domainValidator.getOwnedItem(2L, 1L)).willThrow(new ImsException(ErrorCode.ITEM_NOT_OWNED));
 
         assertThatThrownBy(() -> itemService.getItem(2L, 1L))
-                .isInstanceOf(ImsException.class);
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ITEM_NOT_OWNED);
     }
 
     @Test
     @DisplayName("품목 삭제 성공")
     void deleteItem_success() {
-        given(itemRepository.findById(1L)).willReturn(Optional.of(item));
+        given(domainValidator.getOwnedItem(1L, 1L)).willReturn(item);
         given(bomRepository.existsByParentId(1L)).willReturn(false);
         given(bomRepository.existsByChildId(1L)).willReturn(false);
 
@@ -147,19 +154,21 @@ class ItemServiceTest {
     @Test
     @DisplayName("품목 삭제 실패 - 소유자 아님")
     void deleteItem_notOwner() {
-        given(itemRepository.findById(1L)).willReturn(Optional.of(item));
+        given(domainValidator.getOwnedItem(2L, 1L)).willThrow(new ImsException(ErrorCode.ITEM_NOT_OWNED));
 
         assertThatThrownBy(() -> itemService.deleteItem(2L, 1L))
-                .isInstanceOf(ImsException.class);
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ITEM_NOT_OWNED);
     }
 
     @Test
     @DisplayName("품목 삭제 실패 - BOM에 등록된 품목")
     void deleteItem_bomInUse() {
-        given(itemRepository.findById(1L)).willReturn(Optional.of(item));
+        given(domainValidator.getOwnedItem(1L, 1L)).willReturn(item);
         given(bomRepository.existsByParentId(1L)).willReturn(true);
 
         assertThatThrownBy(() -> itemService.deleteItem(1L, 1L))
-                .isInstanceOf(ImsException.class);
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ITEM_IN_USE_BY_BOM);
     }
 }
