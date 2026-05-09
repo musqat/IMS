@@ -1,13 +1,16 @@
 package com.ims.partnership.service;
 
+import com.ims.global.exception.ErrorCode;
 import com.ims.global.exception.ImsException;
 import com.ims.partnership.dto.request.InviteRequest;
+import com.ims.partnership.dto.response.InviteResponse;
 import com.ims.partnership.dto.response.PartnershipResponse;
 import com.ims.partnership.entity.Partnership;
 import com.ims.partnership.entity.Partnership.PartnershipStatus;
 import com.ims.partnership.repository.PartnershipRepository;
 import com.ims.user.entity.User;
 import com.ims.user.repository.UserRepository;
+import com.ims.warehouse.repository.WarehouseShareRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,6 +36,9 @@ class PartnershipServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private WarehouseShareRepository warehouseShareRepository;
 
     private User mainUser;
     private User subUser;
@@ -60,15 +66,16 @@ class PartnershipServiceTest {
     @DisplayName("초대 성공 - 토큰 반환")
     void invite_success() {
         InviteRequest request = new InviteRequest("2000000001");
-        given(userRepository.findById(1L)).willReturn(Optional.of(mainUser));
+        // mainId는 JWT 인증 userId → getReferenceById 프록시 사용
+        given(userRepository.getReferenceById(1L)).willReturn(mainUser);
         given(userRepository.findByCompanyCode("2000000001")).willReturn(Optional.of(subUser));
         given(partnershipRepository.existsByMainIdAndSubId(1L, 2L)).willReturn(false);
         given(partnershipRepository.existsByMainIdAndSubId(2L, 1L)).willReturn(false);
         given(partnershipRepository.save(any())).willAnswer(i -> i.getArgument(0));
 
-        String token = partnershipService.invite(1L, request);
+        InviteResponse response = partnershipService.invite(1L, request);
 
-        assertThat(token).isNotBlank();
+        assertThat(response.inviteToken()).isNotBlank();
         then(partnershipRepository).should().save(any(Partnership.class));
     }
 
@@ -76,36 +83,39 @@ class PartnershipServiceTest {
     @DisplayName("초대 실패 - 자기 자신 초대")
     void invite_selfInvite() {
         InviteRequest request = new InviteRequest("1000000001");
-        given(userRepository.findById(1L)).willReturn(Optional.of(mainUser));
+        given(userRepository.getReferenceById(1L)).willReturn(mainUser);
         given(userRepository.findByCompanyCode("1000000001")).willReturn(Optional.of(mainUser));
 
         assertThatThrownBy(() -> partnershipService.invite(1L, request))
-                .isInstanceOf(ImsException.class);
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.SELF_INVITE);
     }
 
     @Test
     @DisplayName("초대 실패 - 이미 존재하는 파트너십")
     void invite_duplicatePartnership() {
         InviteRequest request = new InviteRequest("2000000001");
-        given(userRepository.findById(1L)).willReturn(Optional.of(mainUser));
+        given(userRepository.getReferenceById(1L)).willReturn(mainUser);
         given(userRepository.findByCompanyCode("2000000001")).willReturn(Optional.of(subUser));
         given(partnershipRepository.existsByMainIdAndSubId(1L, 2L)).willReturn(true);
 
         assertThatThrownBy(() -> partnershipService.invite(1L, request))
-                .isInstanceOf(ImsException.class);
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.DUPLICATE_PARTNERSHIP);
     }
 
     @Test
     @DisplayName("초대 실패 - 역방향 파트너십 이미 존재")
     void invite_reversePartnershipExists() {
         InviteRequest request = new InviteRequest("2000000001");
-        given(userRepository.findById(1L)).willReturn(Optional.of(mainUser));
+        given(userRepository.getReferenceById(1L)).willReturn(mainUser);
         given(userRepository.findByCompanyCode("2000000001")).willReturn(Optional.of(subUser));
         given(partnershipRepository.existsByMainIdAndSubId(1L, 2L)).willReturn(false);
         given(partnershipRepository.existsByMainIdAndSubId(2L, 1L)).willReturn(true);
 
         assertThatThrownBy(() -> partnershipService.invite(1L, request))
-                .isInstanceOf(ImsException.class);
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.DUPLICATE_PARTNERSHIP);
     }
 
     @Test
@@ -130,7 +140,8 @@ class PartnershipServiceTest {
         given(partnershipRepository.findByInviteToken("valid-token")).willReturn(Optional.of(pending));
 
         assertThatThrownBy(() -> partnershipService.accept(3L, "valid-token"))
-                .isInstanceOf(ImsException.class);
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN);
     }
 
     @Test
@@ -139,7 +150,8 @@ class PartnershipServiceTest {
         given(partnershipRepository.findByInviteToken("bad-token")).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> partnershipService.accept(2L, "bad-token"))
-                .isInstanceOf(ImsException.class);
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INVITE_TOKEN);
     }
 
     @Test
@@ -151,7 +163,8 @@ class PartnershipServiceTest {
         given(partnershipRepository.findByInviteToken("valid-token")).willReturn(Optional.of(accepted));
 
         assertThatThrownBy(() -> partnershipService.accept(2L, "valid-token"))
-                .isInstanceOf(ImsException.class);
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ALREADY_ACCEPTED);
     }
 
     @Test
@@ -211,5 +224,148 @@ class PartnershipServiceTest {
                 .willReturn(false);
 
         assertThat(partnershipService.isPartner(1L, 2L)).isFalse();
+    }
+
+    @Test
+    @DisplayName("파트너십 해제 성공 - 본사가 해제, 양방향 WarehouseShare 정리됨")
+    void removePartnership_byMain() {
+        Partnership partnership = Partnership.builder()
+                .id(1L).main(mainUser).sub(subUser).status(PartnershipStatus.ACCEPTED).build();
+        given(partnershipRepository.findById(1L)).willReturn(Optional.of(partnership));
+
+        partnershipService.removePartnership(mainUser.getId(), 1L);
+
+        then(partnershipRepository).should().delete(partnership);
+        // main→sub 방향, sub→main 방향 양쪽 공유 모두 제거됐는지 검증
+        then(warehouseShareRepository).should()
+                .deleteByWarehouseOwnerIdAndSharedWithId(mainUser.getId(), subUser.getId());
+        then(warehouseShareRepository).should()
+                .deleteByWarehouseOwnerIdAndSharedWithId(subUser.getId(), mainUser.getId());
+    }
+
+    @Test
+    @DisplayName("파트너십 해제 성공 - 하청이 해제, 양방향 WarehouseShare 정리됨")
+    void removePartnership_bySub() {
+        Partnership partnership = Partnership.builder()
+                .id(1L).main(mainUser).sub(subUser).status(PartnershipStatus.ACCEPTED).build();
+        given(partnershipRepository.findById(1L)).willReturn(Optional.of(partnership));
+
+        partnershipService.removePartnership(subUser.getId(), 1L);
+
+        then(partnershipRepository).should().delete(partnership);
+        then(warehouseShareRepository).should()
+                .deleteByWarehouseOwnerIdAndSharedWithId(mainUser.getId(), subUser.getId());
+        then(warehouseShareRepository).should()
+                .deleteByWarehouseOwnerIdAndSharedWithId(subUser.getId(), mainUser.getId());
+    }
+
+    @Test
+    @DisplayName("파트너십 해제 실패 - 관계없는 User")
+    void removePartnership_notMember() {
+        Partnership partnership = Partnership.builder()
+                .id(1L).main(mainUser).sub(subUser).status(PartnershipStatus.ACCEPTED).build();
+        given(partnershipRepository.findById(1L)).willReturn(Optional.of(partnership));
+
+        assertThatThrownBy(() -> partnershipService.removePartnership(999L, 1L))
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN);
+        then(partnershipRepository).should(never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("파트너십 해제 실패 - 존재하지 않는 파트너십")
+    void removePartnership_notFound() {
+        given(partnershipRepository.findById(99L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> partnershipService.removePartnership(mainUser.getId(), 99L))
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.PARTNERSHIP_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("별명 설정 성공")
+    void updateAlias_success() {
+        Partnership partnership = Partnership.builder()
+                .id(1L).main(mainUser).sub(subUser).status(PartnershipStatus.ACCEPTED).build();
+        given(partnershipRepository.findById(1L)).willReturn(Optional.of(partnership));
+
+        PartnershipResponse response = partnershipService.updateAlias(mainUser.getId(), 1L, "우리하청");
+
+        assertThat(response.alias()).isEqualTo("우리하청");
+    }
+
+    @Test
+    @DisplayName("별명 설정 실패 - 관계없는 User")
+    void updateAlias_notMember() {
+        Partnership partnership = Partnership.builder()
+                .id(1L).main(mainUser).sub(subUser).status(PartnershipStatus.ACCEPTED).build();
+        given(partnershipRepository.findById(1L)).willReturn(Optional.of(partnership));
+
+        assertThatThrownBy(() -> partnershipService.updateAlias(999L, 1L, "별명"))
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName("별명 설정 실패 - PENDING 상태 (ACCEPTED 아님)")
+    void updateAlias_pendingState() {
+        Partnership partnership = Partnership.builder()
+                .id(1L).main(mainUser).sub(subUser).status(PartnershipStatus.PENDING).build();
+        given(partnershipRepository.findById(1L)).willReturn(Optional.of(partnership));
+
+        assertThatThrownBy(() -> partnershipService.updateAlias(mainUser.getId(), 1L, "별명"))
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.PARTNERSHIP_NOT_ACCEPTED);
+    }
+
+    @Test
+    @DisplayName("파트너십 해제 실패 - PENDING 상태 (cancelInvite로만 취소 가능)")
+    void removePartnership_pendingState() {
+        Partnership partnership = Partnership.builder()
+                .id(1L).main(mainUser).sub(subUser).status(PartnershipStatus.PENDING).build();
+        given(partnershipRepository.findById(1L)).willReturn(Optional.of(partnership));
+
+        assertThatThrownBy(() -> partnershipService.removePartnership(mainUser.getId(), 1L))
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.PARTNERSHIP_NOT_ACCEPTED);
+        then(partnershipRepository).should(never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("초대 취소 성공 - 본사가 PENDING 초대 삭제")
+    void cancelInvite_success() {
+        Partnership pending = Partnership.builder()
+                .id(1L).main(mainUser).sub(subUser).status(PartnershipStatus.PENDING).build();
+        given(partnershipRepository.findById(1L)).willReturn(Optional.of(pending));
+
+        partnershipService.cancelInvite(mainUser.getId(), 1L);
+
+        then(partnershipRepository).should().delete(pending);
+    }
+
+    @Test
+    @DisplayName("초대 취소 실패 - 본사가 아닌 User가 취소 시도")
+    void cancelInvite_notMain() {
+        Partnership pending = Partnership.builder()
+                .id(1L).main(mainUser).sub(subUser).status(PartnershipStatus.PENDING).build();
+        given(partnershipRepository.findById(1L)).willReturn(Optional.of(pending));
+
+        assertThatThrownBy(() -> partnershipService.cancelInvite(subUser.getId(), 1L))
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN);
+        then(partnershipRepository).should(never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("초대 취소 실패 - 이미 ACCEPTED 상태")
+    void cancelInvite_alreadyAccepted() {
+        Partnership accepted = Partnership.builder()
+                .id(1L).main(mainUser).sub(subUser).status(PartnershipStatus.ACCEPTED).build();
+        given(partnershipRepository.findById(1L)).willReturn(Optional.of(accepted));
+
+        assertThatThrownBy(() -> partnershipService.cancelInvite(mainUser.getId(), 1L))
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ALREADY_ACCEPTED);
+        then(partnershipRepository).should(never()).delete(any());
     }
 }

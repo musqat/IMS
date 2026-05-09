@@ -27,11 +27,23 @@ import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import static org.assertj.core.api.Assertions.*;
 
 @SpringBootTest
+@ActiveProfiles("test")
 class SettlementBatchIntegrationTest {
+
+    // Redis 연결 없이 컨텍스트 로드 가능하도록 Mock 처리
+    // Spring Boot 3.x Reactive Redis 자동 설정도 함께 mock 필요
+    @MockitoBean
+    private RedisConnectionFactory redisConnectionFactory;
+    @MockitoBean
+    private ReactiveRedisConnectionFactory reactiveRedisConnectionFactory;
 
     @Autowired JobLauncher jobLauncher;
     @Autowired Job settlementJob;
@@ -113,5 +125,29 @@ class SettlementBatchIntegrationTest {
         // then
         assertThat(settlementRepository.findByProductionRecordId(record.getId()).get().getResult())
                 .isEqualTo(SettlementResult.ANOMALY);
+    }
+
+    @Test
+    @DisplayName("배치 실행 - BOM 순환 참조 시 FAILED (시스템 오류)")
+    void batch_failed_bomDepthExceeded() throws Exception {
+        // given: 깊이 20단계 초과 BOM 구조 생성 → BomService가 BOM_DEPTH_EXCEEDED 예외 발생
+        // 단순화: itemBike → itemTire → itemBike 순환 참조를 DB에 직접 삽입
+        // (BomService 검증을 우회하여 Repository 레벨에서 직접 저장)
+        bomRepository.save(Bom.builder()
+                .parent(itemTire).child(itemBike).quantity(1).build()); // 타이어 → 자전거 역방향 추가 → 순환
+
+        ProductionRecord record = productionRepository.save(ProductionRecord.builder()
+                .warehouse(warehouse).item(itemBike).quantity(1)
+                .status(ProductionStatus.PENDING).build());
+
+        // when
+        JobParameters params = new JobParametersBuilder()
+                .addLong("time", System.currentTimeMillis() + 2)
+                .toJobParameters();
+        jobLauncher.run(settlementJob, params);
+
+        // then: 순환 참조로 BOM 탐색 실패 → FAILED
+        assertThat(settlementRepository.findByProductionRecordId(record.getId()).get().getResult())
+                .isEqualTo(SettlementResult.FAILED);
     }
 }

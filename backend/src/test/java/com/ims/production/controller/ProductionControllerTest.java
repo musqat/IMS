@@ -4,7 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ims.global.config.SecurityConfig;
 import com.ims.global.security.JwtProvider;
 import com.ims.production.dto.request.ProductionCreateRequest;
+import com.ims.production.dto.request.ProductionUpdateRequest;
+import com.ims.production.dto.request.SettlementUpdateRequest;
 import com.ims.production.dto.response.ProductionResponse;
+import com.ims.production.dto.response.SettlementResponse;
+import com.ims.production.entity.SettlementResult;
 import com.ims.production.entity.ProductionStatus;
 import com.ims.production.service.ProductionService;
 import org.junit.jupiter.api.DisplayName;
@@ -49,6 +53,11 @@ class ProductionControllerTest {
         return new ProductionResponse(1L, 1L, 10L, "로드바이크", 5, ProductionStatus.PENDING, null, LocalDateTime.now());
     }
 
+    private ProductionResponse settledResponse() {
+        SettlementResponse settlement = new SettlementResponse(1L, SettlementResult.SUCCESS, null, null, LocalDateTime.now());
+        return new ProductionResponse(1L, 1L, 10L, "로드바이크", 5, ProductionStatus.SETTLED, settlement, LocalDateTime.now());
+    }
+
     @Test
     @DisplayName("생산 기록 등록 성공 - 201 Created")
     void createRecord_success() throws Exception {
@@ -77,7 +86,7 @@ class ProductionControllerTest {
     @DisplayName("생산 기록 취소 성공 - 200 OK")
     void cancelRecord_success() throws Exception {
         // given
-        willDoNothing().given(productionService).cancelRecord(1L, 1L);
+        willDoNothing().given(productionService).cancelRecord(1L, 1L, 1L);
 
         // when & then
         mockMvc.perform(delete("/api/v1/warehouses/1/productions/1")
@@ -97,5 +106,48 @@ class ProductionControllerTest {
         mockMvc.perform(get("/api/v1/warehouses/1/productions")
                         .with(authentication(auth(1L))))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("생산 기록 수정 성공 - 200 OK")
+    void updateRecord_success() throws Exception {
+        given(productionService.updateRecord(eq(1L), eq(1L), eq(1L), any())).willReturn(productionResponse());
+
+        mockMvc.perform(patch("/api/v1/warehouses/1/productions/1")
+                        .with(authentication(auth(1L)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ProductionUpdateRequest(30))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("강제 결산 성공 - 200 OK")
+    void forceSettle_success() throws Exception {
+        given(productionService.forceSettle(eq(1L), eq(1L), eq(1L))).willReturn(settledResponse());
+
+        mockMvc.perform(post("/api/v1/warehouses/1/productions/1/settle")
+                        .with(authentication(auth(1L))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("SETTLED"));
+    }
+
+    @Test
+    @DisplayName("결산 수정 성공 - 200 OK")
+    void updateSettlement_success() throws Exception {
+        given(productionService.updateSettlement(eq(1L), eq(1L), eq(1L), any())).willReturn(settledResponse());
+
+        mockMvc.perform(patch("/api/v1/warehouses/1/productions/1/settlement")
+                        .with(authentication(auth(1L)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new SettlementUpdateRequest(SettlementResult.SUCCESS, "수정 메모"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.settlement.result").value("SUCCESS"));
+    }
+
+    @Test
+    @DisplayName("강제 결산 실패 - 미인증 401")
+    void forceSettle_unauthorized() throws Exception {
+        mockMvc.perform(post("/api/v1/warehouses/1/productions/1/settle"))
+                .andExpect(status().isUnauthorized());
     }
 }

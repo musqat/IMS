@@ -3,6 +3,7 @@ package com.ims.production.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
@@ -32,6 +33,20 @@ public class Settlement {
     @Column(columnDefinition = "TEXT")
     private String anomalyDetail;
 
+    /** 수동 수정 메모 */
+    @Column(columnDefinition = "TEXT")
+    private String memo;
+
     @CreatedDate
+    @Column(updatable = false)
     private LocalDateTime settledAt;
+
+    @LastModifiedDate
+    private LocalDateTime updatedAt;
+
+    /** 결산 결과 수동 수정 */
+    public void update(SettlementResult newResult, String newMemo) {
+        this.result = newResult;
+        this.memo = newMemo;
+    }
 }

@@ -2,23 +2,28 @@ package com.ims.inventory.service;
 
 import com.ims.global.exception.ErrorCode;
 import com.ims.global.exception.ImsException;
+import com.ims.global.support.DomainValidator;
+import com.ims.global.support.InventoryHistoryWriter;
 import com.ims.inventory.dto.request.InventoryCreateRequest;
 import com.ims.inventory.dto.request.AdjustRequest;
 import com.ims.inventory.dto.request.InboundRequest;
 import com.ims.inventory.dto.request.OutboundRequest;
+import com.ims.inventory.dto.request.SafetyStockUpdateRequest;
+import com.ims.inventory.dto.response.InventoryExportRow;
 import com.ims.inventory.dto.response.InventoryHistoryResponse;
 import com.ims.inventory.dto.response.InventoryResponse;
 import com.ims.inventory.dto.response.MaxProducibleResponse;
 import com.ims.inventory.entity.Inventory;
-import com.ims.inventory.entity.InventoryHistory;
 import com.ims.inventory.entity.InventoryHistoryType;
 import com.ims.inventory.repository.InventoryHistoryRepository;
 import com.ims.inventory.repository.InventoryRepository;
+import com.ims.inventory.dto.response.PartShortageDto;
+import com.ims.inventory.dto.response.ShortageItemResponse;
 import com.ims.item.entity.Item;
+import com.ims.item.entity.ItemType;
 import com.ims.item.repository.ItemRepository;
 import com.ims.item.service.BomService;
 import com.ims.warehouse.entity.Warehouse;
-import com.ims.warehouse.repository.WarehouseRepository;
 import com.ims.warehouse.service.WarehouseShareService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -27,7 +32,12 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -36,20 +46,22 @@ public class InventoryService {
 
     private final InventoryRepository inventoryRepository;
     private final InventoryHistoryRepository inventoryHistoryRepository;
-    private final WarehouseRepository warehouseRepository;
-    private final ItemRepository itemRepository;
     private final WarehouseShareService warehouseShareService;
     private final BomService bomService;
+    private final DomainValidator domainValidator;
+    private final InventoryHistoryWriter inventoryHistoryWriter;
+    private final ItemRepository itemRepository;
 
     /**
      * 재고 항목 등록 (창고 + 품목 조합 최초 1회)
-     * - 창고 소유자 검증, 품목 존재 검증, 중복 검증
-     * - quantity=0 으로 초기화 후 저장
+     * - 창고 소유자 검증, 품목 소유자 검증, 중복 검증
+     * - quantity / safetyStock 초기값으로 저장
      */
     @Transactional
     public InventoryResponse createInventory(Long userId, Long warehouseId, InventoryCreateRequest request) {
-        Warehouse warehouse = getOwnedWarehouse(userId, warehouseId);
-        Item item = itemRepository.findById(request.itemId()).orElseThrow(() -> new ImsException(ErrorCode.ITEM_NOT_FOUND));
+        Warehouse warehouse = domainValidator.getOwnedWarehouse(userId, warehouseId);
+        Item item = domainValidator.getOwnedItem(userId, request.itemId());
+
         if (inventoryRepository.existsByWarehouseIdAndItemId(warehouseId, item.getId())) {
             throw new ImsException(ErrorCode.DUPLICATE_INVENTORY);
         }
@@ -57,7 +69,7 @@ public class InventoryService {
         Inventory inventory = Inventory.builder()
                 .warehouse(warehouse)
                 .item(item)
-                .quantity(0)
+                .quantity(request.quantity())
                 .safetyStock(request.safetyStock())
                 .build();
 
@@ -71,25 +83,24 @@ public class InventoryService {
      */
     @Transactional
     public InventoryResponse adjustIn(Long userId, Long warehouseId, Long itemId, InboundRequest request) {
-        getOwnedWarehouse(userId, warehouseId);
+        domainValidator.getOwnedWarehouse(userId, warehouseId);
         Inventory inventory = getInventoryOrThrow(warehouseId, itemId);
         inventory.add(request.quantity());
-        saveHistory(inventory, InventoryHistoryType.IN, +request.quantity(), request.memo());
+        inventoryHistoryWriter.save(inventory, InventoryHistoryType.IN, +request.quantity(), request.memo());
         return InventoryResponse.from(inventory);
     }
 
     /**
      * 출고
-     * - 소유자 검증 후 quantity 차감 (재고 부족 시 INSUFFICIENT_STOCK)
+     * - 소유자 검증 후 quantity 차감 (재고 부족 시 예외)
      * - History(OUT, delta=-qty) 기록
      */
     @Transactional
     public InventoryResponse adjustOut(Long userId, Long warehouseId, Long itemId, OutboundRequest request) {
-        getOwnedWarehouse(userId, warehouseId);
+        domainValidator.getOwnedWarehouse(userId, warehouseId);
         Inventory inventory = getInventoryOrThrow(warehouseId, itemId);
         inventory.deduct(request.quantity());
-        int delta = -request.quantity();
-        saveHistory(inventory, InventoryHistoryType.OUT, delta, request.memo());
+        inventoryHistoryWriter.save(inventory, InventoryHistoryType.OUT, -request.quantity(), request.memo());
         return InventoryResponse.from(inventory);
     }
 
@@ -100,11 +111,11 @@ public class InventoryService {
      */
     @Transactional
     public InventoryResponse adjust(Long userId, Long warehouseId, Long itemId, AdjustRequest request) {
-        getOwnedWarehouse(userId, warehouseId);
+        domainValidator.getOwnedWarehouse(userId, warehouseId);
         Inventory inventory = getInventoryOrThrow(warehouseId, itemId);
-        int delta = request.newQuantity() - inventory.getQuantity(); // 기록용
-        inventory.setQuantity(request.newQuantity());
-        saveHistory(inventory, InventoryHistoryType.ADJUSTMENT, delta, request.memo());
+        int delta = request.quantity() - inventory.getQuantity();
+        inventory.setQuantity(request.quantity());
+        inventoryHistoryWriter.save(inventory, InventoryHistoryType.ADJUSTMENT, delta, request.memo());
         return InventoryResponse.from(inventory);
     }
 
@@ -152,53 +163,127 @@ public class InventoryService {
      */
     public MaxProducibleResponse calcMaxProducible(Long userId, Long warehouseId, Long itemId) {
         warehouseShareService.checkViewAccess(userId, warehouseId);
-        Item item = itemRepository.findById(itemId).orElseThrow(() -> new ImsException(ErrorCode.ITEM_NOT_FOUND));
-        Map<Long, Integer> requirements = bomService.getFullBomTree(itemId);
+        Item item = domainValidator.getOwnedItem(userId, itemId);
+        Map<Long, Long> requirements = bomService.getFullBomTree(itemId, userId);
         if (requirements.isEmpty()) {
-            return new MaxProducibleResponse(itemId, item.getName(), 0);
+            // BOM 없음 = 차감할 부품이 없으므로 제한 없음(null)
+            return new MaxProducibleResponse(itemId, item.getName(), null);
         }
 
-        int maxQuantity = Integer.MAX_VALUE;
-        for (Map.Entry<Long, Integer> entry : requirements.entrySet()) {
-            int stock = inventoryRepository.findByWarehouseIdAndItemId(warehouseId, entry.getKey())
-                    .map(Inventory::getQuantity).orElse(0);
+        // 부품 재고 일괄 조회
+        List<Long> partIds = List.copyOf(requirements.keySet());
+        Map<Long, Integer> stockMap = inventoryRepository
+                .findAllByWarehouseIdAndItemIdIn(warehouseId, partIds)
+                .stream()
+                .collect(Collectors.toMap(inv -> inv.getItem().getId(), Inventory::getQuantity));
+
+        long maxQuantity = Long.MAX_VALUE;
+        for (Map.Entry<Long, Long> entry : requirements.entrySet()) {
+            int stock = stockMap.getOrDefault(entry.getKey(), 0);
             if (stock == 0) {
-                maxQuantity = 0;
-                break;
+                return new MaxProducibleResponse(itemId, item.getName(), 0);
             }
-            maxQuantity = Math.min(maxQuantity, stock / entry.getValue());
+            maxQuantity = Math.min(maxQuantity, (long) stock / entry.getValue());
         }
-        return new MaxProducibleResponse(itemId, item.getName(), maxQuantity == Integer.MAX_VALUE ? 0 : maxQuantity);
+        // int 범위 초과 방지 cap
+        return new MaxProducibleResponse(itemId, item.getName(),
+                (int) Math.min(maxQuantity, Integer.MAX_VALUE));
+    }
+
+    /**
+     * 생산 불가 완제품 분석
+     * - 사용자 소유 완성품(PRODUCT) 전체 조회
+     * - BOM 트리를 한 번의 DB 조회로 일괄 계산 (제품 수만큼 반복 조회 방지)
+     * - 각 완성품의 부족 부품을 배치 조회 (N+1 방지)
+     * - 1개도 생산 불가(재고 < 필요량)인 부품이 있는 완성품만 반환
+     */
+    public List<ShortageItemResponse> getShortageAnalysis(Long userId, Long warehouseId) {
+        warehouseShareService.checkViewAccess(userId, warehouseId);
+        List<Item> products = itemRepository.findAllByOwnerIdAndType(userId, ItemType.PRODUCT);
+        if (products.isEmpty()) return List.of();
+
+        // BOM 트리 전체를 DB 1회 조회로 일괄 계산
+        List<Long> productIds = products.stream().map(Item::getId).toList();
+        Map<Long, Map<Long, Long>> allBomTrees = bomService.getFullBomTrees(productIds, userId);
+
+        return products.stream()
+                .map(product -> {
+                    Map<Long, Long> requirements = allBomTrees.getOrDefault(product.getId(), Map.of());
+                    if (requirements.isEmpty()) return null;
+
+                    List<Long> partIds = List.copyOf(requirements.keySet());
+                    Map<Long, Integer> stockMap = inventoryRepository
+                            .findAllByWarehouseIdAndItemIdIn(warehouseId, partIds)
+                            .stream()
+                            .collect(Collectors.toMap(inv -> inv.getItem().getId(), Inventory::getQuantity));
+
+                    // 부족 부품 ID 먼저 수집 → 아이템 배치 조회 (N+1 방지)
+                    Set<Long> shortagePartIds = requirements.entrySet().stream()
+                            .filter(e -> stockMap.getOrDefault(e.getKey(), 0) < e.getValue())
+                            .map(Map.Entry::getKey)
+                            .collect(Collectors.toSet());
+                    if (shortagePartIds.isEmpty()) return null;
+
+                    Map<Long, Item> partItemMap = itemRepository.findAllById(shortagePartIds)
+                            .stream().collect(Collectors.toMap(Item::getId, i -> i));
+
+                    List<PartShortageDto> shortages = requirements.entrySet().stream()
+                            .filter(e -> shortagePartIds.contains(e.getKey()))
+                            .map(e -> {
+                                Item part = partItemMap.get(e.getKey());
+                                if (part == null) throw new ImsException(ErrorCode.ITEM_NOT_FOUND);
+                                return new PartShortageDto(
+                                        e.getKey(),
+                                        part.getItemCode(),
+                                        part.getName(),
+                                        e.getValue(),
+                                        stockMap.getOrDefault(e.getKey(), 0)
+                                );
+                            })
+                            .toList();
+
+                    return new ShortageItemResponse(product.getId(), product.getItemCode(), product.getName(), shortages);
+                })
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    /**
+     * 안전재고 수정
+     * - 창고 소유자 검증
+     */
+    @Transactional
+    public InventoryResponse updateSafetyStock(Long userId, Long warehouseId, Long itemId, SafetyStockUpdateRequest request) {
+        domainValidator.getOwnedWarehouse(userId, warehouseId);
+        Inventory inventory = getInventoryOrThrow(warehouseId, itemId);
+        inventory.updateSafetyStock(request.safetyStock());
+        return InventoryResponse.from(inventory);
+    }
+
+    /**
+     * 창고 이력 Export용 조회
+     * - 조회 권한 검증
+     * - 타입·기간 필터 적용
+     * - itemCode, itemName 포함한 행 목록 반환
+     */
+    public List<InventoryExportRow> getWarehouseHistory(
+            Long userId, Long warehouseId,
+            List<InventoryHistoryType> types,
+            LocalDate from, LocalDate to) {
+        warehouseShareService.checkViewAccess(userId, warehouseId);
+        return inventoryHistoryRepository
+                .findAllByInventory_WarehouseIdAndTypeInAndCreatedAtBetween(
+                        warehouseId, types,
+                        from.atStartOfDay(),
+                        to.plusDays(1).atStartOfDay())
+                .stream().map(InventoryExportRow::from).toList();
     }
 
     //======================== 헬퍼 메소드 ===========================//
 
-    /**
-     * 창고 조회 + 소유자 검증
-     * - WAREHOUSE_NOT_FOUND, WAREHOUSE_NOT_OWNED
-     */
-    private Warehouse getOwnedWarehouse(Long userId, Long warehouseId) {
-        Warehouse warehouse = warehouseRepository.findById(warehouseId).orElseThrow(() -> new ImsException(ErrorCode.WAREHOUSE_NOT_FOUND));
-        if (!warehouse.getOwner().getId().equals(userId)) {
-            throw new ImsException(ErrorCode.WAREHOUSE_NOT_OWNED);
-        }
-        return warehouse;
-    }
-
-    /** 창고 + 품목으로 재고 조회 → INVENTORY_NOT_FOUND */
+    /** 창고 + 품목으로 재고 조회, 없으면 예외 */
     private Inventory getInventoryOrThrow(Long warehouseId, Long itemId) {
         return inventoryRepository.findByWarehouseIdAndItemId(warehouseId, itemId)
                 .orElseThrow(() -> new ImsException(ErrorCode.INVENTORY_NOT_FOUND));
-    }
-
-    /** InventoryHistory 저장 */
-    private void saveHistory(Inventory inventory, InventoryHistoryType type, int delta, String memo) {
-        InventoryHistory history = InventoryHistory.builder()
-                .inventory(inventory)
-                .type(type)
-                .delta(delta)
-                .memo(memo)
-                .build();
-        inventoryHistoryRepository.save(history);
     }
 }

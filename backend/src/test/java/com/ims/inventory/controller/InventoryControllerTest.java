@@ -2,16 +2,21 @@ package com.ims.inventory.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ims.global.config.SecurityConfig;
+import com.ims.global.exception.ErrorCode;
+import com.ims.global.exception.ImsException;
 import com.ims.global.security.JwtProvider;
 import com.ims.inventory.dto.request.InventoryCreateRequest;
 import com.ims.inventory.dto.request.AdjustRequest;
 import com.ims.inventory.dto.request.InboundRequest;
 import com.ims.inventory.dto.request.OutboundRequest;
+import com.ims.inventory.dto.request.SafetyStockUpdateRequest;
 import com.ims.inventory.dto.response.InventoryHistoryResponse;
 import com.ims.inventory.dto.response.InventoryResponse;
 import com.ims.inventory.dto.response.MaxProducibleResponse;
+import com.ims.inventory.dto.response.ShortageItemResponse;
 import com.ims.inventory.entity.InventoryHistoryType;
 import com.ims.inventory.service.InventoryService;
+import com.ims.item.entity.ItemType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +37,7 @@ import static org.mockito.BDDMockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 @WebMvcTest(InventoryController.class)
 @Import(SecurityConfig.class)
@@ -57,7 +63,7 @@ class InventoryControllerTest {
     }
 
     private InventoryResponse inventoryResponse() {
-        return new InventoryResponse(1L, 1L, 10L, "ITEM-001", "자전거", 100, 20, null);
+        return new InventoryResponse(1L, 1L, 10L, "ITEM-001", "자전거", ItemType.PART,100, 20, null);
     }
 
     @Test
@@ -68,12 +74,12 @@ class InventoryControllerTest {
         mockMvc.perform(post("/api/v1/warehouses/1/inventories")
                         .with(authentication(auth(1L)))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new InventoryCreateRequest(10L, 20))))
+                        .content(objectMapper.writeValueAsString(new InventoryCreateRequest(10L, 20, 15))))
                 .andExpect(status().isCreated());
     }
 
     @Test
-    @DisplayName("입고 성공 - 200 OK")
+    @DisplayName("입고 성공 - 200 OK, 응답 body itemCode·quantity 검증")
     void adjustIn_success() throws Exception {
         given(inventoryService.adjustIn(eq(1L), eq(1L), eq(10L), any())).willReturn(inventoryResponse());
 
@@ -81,7 +87,23 @@ class InventoryControllerTest {
                         .with(authentication(auth(1L)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new InboundRequest(50, "입고 메모"))))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.itemCode").value("ITEM-001"))
+                .andExpect(jsonPath("$.data.quantity").value(100));
+    }
+
+    @Test
+    @DisplayName("출고 실패 - 재고 부족 시 400 Bad Request")
+    void adjustOut_insufficientStock_returns400() throws Exception {
+        given(inventoryService.adjustOut(eq(1L), eq(1L), eq(10L), any()))
+                .willThrow(new ImsException(ErrorCode.INSUFFICIENT_STOCK));
+
+        mockMvc.perform(post("/api/v1/warehouses/1/inventories/10/out")
+                        .with(authentication(auth(1L)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new OutboundRequest(9999, null))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("재고가 부족합니다."));
     }
 
     @Test
@@ -162,5 +184,46 @@ class InventoryControllerTest {
         mockMvc.perform(get("/api/v1/warehouses/1/inventories/10/max-producible")
                         .with(authentication(auth(1L))))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("안전재고 수정 성공 - 200 OK")
+    void updateSafetyStock_success() throws Exception {
+        given(inventoryService.updateSafetyStock(eq(1L), eq(1L), eq(10L), any())).willReturn(inventoryResponse());
+
+        mockMvc.perform(patch("/api/v1/warehouses/1/inventories/10/safety-stock")
+                        .with(authentication(auth(1L)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new SafetyStockUpdateRequest(30))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("안전재고 수정 실패 - 미인증 401")
+    void updateSafetyStock_unauthorized() throws Exception {
+        mockMvc.perform(patch("/api/v1/warehouses/1/inventories/10/safety-stock")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new SafetyStockUpdateRequest(30))))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("부족 재고 분석 조회 성공 - 200 OK")
+    void getShortageAnalysis_success() throws Exception {
+        List<ShortageItemResponse> responses = List.of(
+                new ShortageItemResponse(10L, "BIKE-001", "자전거", List.of())
+        );
+        given(inventoryService.getShortageAnalysis(eq(1L), eq(1L))).willReturn(responses);
+
+        mockMvc.perform(get("/api/v1/warehouses/1/inventories/shortage-analysis")
+                        .with(authentication(auth(1L))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("부족 재고 분석 조회 실패 - 미인증 401")
+    void getShortageAnalysis_unauthorized() throws Exception {
+        mockMvc.perform(get("/api/v1/warehouses/1/inventories/shortage-analysis"))
+                .andExpect(status().isUnauthorized());
     }
 }

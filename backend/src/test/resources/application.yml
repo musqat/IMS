@@ -11,8 +11,21 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
 
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
   batch:
     job:
       enabled: false
     jdbc:
       initialize-schema: always
+
+jwt:
+  secret: test-secret-key-must-be-at-least-32-characters-long
+  access-token-expiry: 3600000
+  refresh-token-expiry: 1209600000
+
+cors:
+  allowed-origins: http://localhost:3000

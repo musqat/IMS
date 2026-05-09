@@ -1,6 +1,7 @@
 package com.ims.inventory.dto.response;
 
 import com.ims.inventory.entity.Inventory;
+import com.ims.item.entity.ItemType;
 
 public record InventoryResponse(
         Long id,
@@ -8,6 +9,7 @@ public record InventoryResponse(
         Long itemId,
         String itemCode,
         String itemName,
+        ItemType itemType,
         int quantity,
         int safetyStock,
         String warning
@@ -21,6 +23,7 @@ public record InventoryResponse(
                 inventory.getItem().getId(),
                 inventory.getItem().getItemCode(),
                 inventory.getItem().getName(),
+                inventory.getItem().getType(),
                 inventory.getQuantity(),
                 inventory.getSafetyStock(),
                 inventory.isBelowSafetyStock() ? WARNING_MESSAGE : null

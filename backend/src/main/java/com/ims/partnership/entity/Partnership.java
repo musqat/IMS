@@ -37,6 +37,9 @@ public class Partnership {
     @Column(unique = true)
     private String inviteToken;
 
+    @Column
+    private String alias;
+
     @CreatedDate
     private LocalDateTime createdAt;
 
@@ -49,5 +52,10 @@ public class Partnership {
     public void accept() {
         this.status = PartnershipStatus.ACCEPTED;
         this.acceptedAt = LocalDateTime.now();
+        this.inviteToken = null;
+    }
+
+    public void updateAlias(String alias) {
+        this.alias = alias;
     }
 }

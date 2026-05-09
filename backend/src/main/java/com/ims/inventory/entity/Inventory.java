@@ -61,10 +61,10 @@ public class Inventory {
         quantity -= qty;
     }
 
-    /** 실사 보정: newQty < 0 이면 INSUFFICIENT_STOCK */
+    /** 실사 보정: newQty < 0 이면 INVALID_QUANTITY */
     public void setQuantity(int newQty) {
         if (newQty < 0) {
-            throw new ImsException(ErrorCode.INSUFFICIENT_STOCK);
+            throw new ImsException(ErrorCode.INVALID_QUANTITY);
         }
         quantity = newQty;
     }
@@ -72,5 +72,13 @@ public class Inventory {
     /** 안전재고 이하 여부 */
     public boolean isBelowSafetyStock() {
         return quantity <= safetyStock;
+    }
+
+    /**
+     * 안전재고 수정
+     */
+    public void updateSafetyStock(int newSafetyStock) {
+        if (newSafetyStock < 0) throw new ImsException(ErrorCode.INVALID_QUANTITY);
+        this.safetyStock = newSafetyStock;
     }
 }

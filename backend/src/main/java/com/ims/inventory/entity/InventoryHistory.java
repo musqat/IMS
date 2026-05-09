@@ -39,4 +39,6 @@ public class InventoryHistory {
 
     @CreatedDate
     private LocalDateTime createdAt;
+
+
 }

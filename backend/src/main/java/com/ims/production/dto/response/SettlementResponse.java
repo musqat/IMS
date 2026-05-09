@@ -9,6 +9,7 @@ public record SettlementResponse(
         Long id,
         SettlementResult result,
         String anomalyDetail,
+        String memo,
         LocalDateTime settledAt
 ) {
     public static SettlementResponse from(Settlement settlement) {
@@ -16,6 +17,7 @@ public record SettlementResponse(
                 settlement.getId(),
                 settlement.getResult(),
                 settlement.getAnomalyDetail(),
+                settlement.getMemo(),
                 settlement.getSettledAt()
         );
     }

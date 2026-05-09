@@ -2,6 +2,7 @@ package com.ims.warehouse.service;
 
 import com.ims.global.exception.ErrorCode;
 import com.ims.global.exception.ImsException;
+import com.ims.global.support.DomainValidator;
 import com.ims.user.entity.User;
 import com.ims.user.repository.UserRepository;
 import com.ims.warehouse.dto.request.WarehouseCreateRequest;
@@ -21,6 +22,7 @@ public class WarehouseService {
 
     private final WarehouseRepository warehouseRepository;
     private final UserRepository userRepository;
+    private final DomainValidator domainValidator;
 
     /**
      * 창고 생성
@@ -53,14 +55,10 @@ public class WarehouseService {
 
     /**
      * 창고 단건 조회
-     * - warehouseId로 조회 후 소유자 검증
+     * - 소유자 검증 후 반환
      */
     public WarehouseResponse getWarehouse(Long userId, Long warehouseId) {
-        Warehouse warehouse = warehouseRepository.findById(warehouseId)
-                .orElseThrow(() -> new ImsException(ErrorCode.WAREHOUSE_NOT_FOUND));
-        if (!warehouse.getOwner().getId().equals(userId)) {
-            throw new ImsException(ErrorCode.FORBIDDEN);
-        }
+        Warehouse warehouse = domainValidator.getOwnedWarehouse(userId, warehouseId);
         return WarehouseResponse.from(warehouse);
     }
 
@@ -70,11 +68,7 @@ public class WarehouseService {
      */
     @Transactional
     public void deleteWarehouse(Long userId, Long warehouseId) {
-        Warehouse warehouse = warehouseRepository.findById(warehouseId)
-                .orElseThrow(() -> new ImsException(ErrorCode.WAREHOUSE_NOT_FOUND));
-        if (!warehouse.getOwner().getId().equals(userId)) {
-            throw new ImsException(ErrorCode.FORBIDDEN);
-        }
+        Warehouse warehouse = domainValidator.getOwnedWarehouse(userId, warehouseId);
         warehouseRepository.delete(warehouse);
     }
 }
