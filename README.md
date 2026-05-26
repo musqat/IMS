@@ -6,9 +6,9 @@
 
 ## Overview
 
-중소 제조업체는 ERP를 도입해도 본사-하청 간 재고 협업은 여전히 엑셀에 의존하는 경우가 많습니다.  
-IMS는 이 문제에 집중합니다. 회사 단위 계정으로 가입하고, 초대(Partnership)로 협력사 관계를 맺어 창고와 재고를 공유 관리합니다.  
-BOM 기반 생산 계획, 실시간 재고 추적, 자정 배치 결산까지 하나의 시스템으로 처리합니다.
+본사-하청 간 재고 협업은 ERP 도입 후에도 엑셀로 처리되는 경우가 많습니다. 협력사마다 재고 기준이 달라 생산 계획이 어긋나고, 부품 부족은 결산 후에야 드러납니다.
+
+IMS는 회사 단위 계정과 초대 기반 Partnership으로 협력사를 연결합니다. 창고 공유 권한(VIEW/FULL), BOM 기반 최대 생산량 자동 계산, 자정 배치 결산까지 하나의 시스템에서 처리합니다.
 
 
 ## Tech Stack
@@ -66,7 +66,7 @@ BOM 기반 생산 계획, 실시간 재고 추적, 자정 배치 결산까지 �
 ### BOM 기반 생산 계획
 
 `ITEM` 테이블 하나로 완성품 · 반제품 · 부품을 통합 관리합니다.  
-BOM이 ITEM 간 셀프 조인으로 다단계 구조를 표현합니다.
+BOM은 ITEM 간 셀프 조인으로 다단계 구조를 구성합니다.
 
 ```
 스마트스피커 (PRODUCT)
@@ -100,7 +100,7 @@ BOM이 ITEM 간 셀프 조인으로 다단계 구조를 표현합니다.
          └─ ProductionRecord.status → SETTLED
 ```
 
-레코드별 독립 트랜잭션 (`REQUIRES_NEW`) — 한 건 실패가 다른 결산을 롤백하지 않음.  
+레코드별 독립 트랜잭션 (`REQUIRES_NEW`). 한 건 실패가 다른 결산을 롤백하지 않음.  
 BOM 부품 재고는 단일 IN 쿼리로 일괄 조회하여 N+1 방지.
 
 `Settlement`를 별도 엔티티로 분리한 이유: **결산 로직을 생산 기록 없이 독립 단위 테스트로 검증**하기 위해.  
@@ -178,7 +178,7 @@ IMS/
 │   │       ├── scheduler/   # SettlementBatchConfig, SettlementJobScheduler
 │   │       ├── config/      # RedisConfig, BatchConfig, DataInitializer
 │   │       └── exception/   # ImsException, ErrorCode, GlobalExceptionHandler
-│   └── src/test/            # 단위 · 통합 · 슬라이스 테스트 (70+ cases)
+│   └── src/test/            # 단위 · 통합 · 슬라이스 테스트 (240개 이상)
 │
 ├── frontend/
 │   └── app/
