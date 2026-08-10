@@ -25,7 +25,7 @@ interface Props {
   dayCount: number;
 }
 
-export function ProductionOutboundSection({ productions, startDate, endDate, dayCount }: Props) {
+export function ProductionOutboundSection({ productions, startDate, endDate }: Props) {
   const [warehouseId, setWarehouseId] = useState<number | null>(null);
   const [itemId, setItemId] = useState<number | null>(null);
 
