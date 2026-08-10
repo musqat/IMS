@@ -12,17 +12,47 @@ import {
   Download,
   Loader2,
 } from 'lucide-react';
-import { buildPivot, downloadXlsx } from '@/lib/utils/exportXlsx';
+import { downloadXlsx } from '@/lib/utils/exportXlsx';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { InventoryHistoryType } from '@/lib/types';
+
+/** Date를 로컬 기준 YYYY-MM-DD로. toISOString은 UTC라 KST 오전에 하루 밀린다. */
+function iso(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 function defaultFrom() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 }
 function defaultTo() {
-  return new Date().toISOString().slice(0, 10);
+  return iso(new Date());
+}
+
+/** 오늘로부터 n개월 전 */
+function monthsAgo(n: number) {
+  const d = new Date();
+  d.setMonth(d.getMonth() - n);
+  return iso(d);
+}
+
+const PRESETS = [
+  { label: '최근 1개월', from: () => monthsAgo(1) },
+  { label: '최근 3개월', from: () => monthsAgo(3) },
+  { label: '최근 1년', from: () => monthsAgo(12) },
+];
+
+/**
+ * 서버와 동일한 기간 규칙을 미리 검사한다.
+ * 이력 조회는 메모리와 열 수 때문에 1년으로 제한된다 — 그보다 길면 연 단위로 나눠 받아야 한다.
+ */
+function rangeError(from: string, to: string): string | null {
+  if (from > to) return '시작일이 종료일보다 클 수 없습니다.';
+  const limit = new Date(from);
+  limit.setFullYear(limit.getFullYear() + 1);
+  if (iso(limit) < to) return '조회 기간은 최대 1년입니다. 연 단위로 나눠서 받아주세요.';
+  return null;
 }
 
 const inputCls = cn(
@@ -41,19 +71,20 @@ export default function ExportPage() {
   const disabled = !warehouseId || isLoading;
 
   const run = async (key: string, fn: () => Promise<void>) => {
+    const err = rangeError(from, to);
+    if (err) {
+      toast.error(err);
+      return;
+    }
     setLoadingKey(key);
     try { await fn(); } finally { setLoadingKey(null); }
   };
 
-  // 출고/생산차감은 맥락상 명확하므로 양수 표시, 합산은 +/- 유지
-  const ABSOLUTE_TYPES: InventoryHistoryType[] = ['OUT', 'PRODUCTION_DEDUCTION'];
-
-  const handleExport = (types: InventoryHistoryType[], sheetName: string, filename: string) =>
+  const handleExport = (types: InventoryHistoryType[], sheetName: string, filename: string, absValue = false) =>
     run(sheetName, async () => {
       if (!warehouseId) return;
       const rows = await inventoryApi.getWarehouseHistory(warehouseId, types, from, to);
-      const absValue = types.length === 1 && ABSOLUTE_TYPES.includes(types[0]);
-      downloadXlsx([buildPivot(rows, absValue)], [sheetName], `${filename}_${from}_${to}.xlsx`);
+      await downloadXlsx([{ rows, name: sheetName, absValue }], `${filename}_${from}_${to}.xlsx`);
       toast.success(`${sheetName} 다운로드 완료`);
     });
 
@@ -70,10 +101,14 @@ export default function ExportPage() {
       const inRows   = allRows.filter((r) => r.type === 'IN');
       const outRows  = allRows.filter((r) => r.type === 'OUT');
       const prodRows = allRows.filter((r) => r.type === 'PRODUCTION_DEDUCTION');
-      const adjRows  = allRows.filter((r) => r.type === 'ADJUSTMENT');
-      downloadXlsx(
-        [buildPivot(inRows), buildPivot(outRows, true), buildPivot(prodRows, true), buildPivot(adjRows), buildPivot(allRows)],
-        ['입고내역', '출고내역', '생산차감', '조정내역', '합산내역'],
+      const inOutRows = [...inRows, ...outRows];
+      await downloadXlsx(
+        [
+          { rows: inRows,    name: '입고내역',   absValue: false },
+          { rows: outRows,   name: '출고내역',   absValue: true  },
+          { rows: prodRows,  name: '생산차감',   absValue: true  },
+          { rows: inOutRows, name: '입출고합산', absValue: false },
+        ],
         `전체통합_${from}_${to}.xlsx`,
       );
       toast.success('전체 통합 다운로드 완료');
@@ -94,7 +129,7 @@ export default function ExportPage() {
       desc: '날짜별 품목 출고 수량',
       icon: <ArrowUpFromLine className="h-4 w-4" />,
       iconBg: 'bg-rose-50 text-rose-500',
-      onClick: () => handleExport(['OUT'], '출고내역', '출고내역'),
+      onClick: () => handleExport(['OUT'], '출고내역', '출고내역', true),
     },
     {
       key: '생산차감',
@@ -102,23 +137,15 @@ export default function ExportPage() {
       desc: '날짜별 생산 결산 시 차감 수량',
       icon: <Minus className="h-4 w-4" />,
       iconBg: 'bg-amber-50 text-amber-500',
-      onClick: () => handleExport(['PRODUCTION_DEDUCTION'], '생산차감', '생산차감내역'),
+      onClick: () => handleExport(['PRODUCTION_DEDUCTION'], '생산차감', '생산차감내역', true),
     },
     {
-      key: '조정내역',
-      title: '조정 내역',
-      desc: '날짜별 재고 실사 보정 변화량 (+/-)',
-      icon: <Minus className="h-4 w-4" />,
-      iconBg: 'bg-sky-50 text-sky-500',
-      onClick: () => handleExport(['ADJUSTMENT'], '조정내역', '조정내역'),
-    },
-    {
-      key: '합산내역',
-      title: '합산 내역',
-      desc: '입고 / 출고 / 생산차감 / 조정 전체 순변화',
+      key: '입출고합산',
+      title: '입출고 합산',
+      desc: '입고·출고 순변화 (+ 입고 / − 출고)',
       icon: <LayoutList className="h-4 w-4" />,
       iconBg: 'bg-violet-50 text-violet-500',
-      onClick: () => handleExport(['IN', 'OUT', 'PRODUCTION_DEDUCTION', 'ADJUSTMENT'], '합산내역', '합산내역'),
+      onClick: () => handleExport(['IN', 'OUT'], '입출고합산', '입출고합산'),
     },
   ];
 
@@ -146,6 +173,24 @@ export default function ExportPage() {
           <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={inputCls} />
           <span className="text-stone-300">—</span>
           <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={inputCls} />
+          <span className="text-xs text-stone-400 ml-1">최대 1년</span>
+        </div>
+
+        {/* 기간 프리셋 */}
+        <div className="flex items-center gap-1.5 w-full">
+          {PRESETS.map((p) => (
+            <button
+              key={p.label}
+              type="button"
+              className="h-7 px-2.5 rounded-md border border-stone-200 text-xs text-stone-600 hover:bg-stone-50 transition-colors"
+              onClick={() => { setFrom(p.from()); setTo(iso(new Date())); }}
+            >
+              {p.label}
+            </button>
+          ))}
+          <p className="text-xs text-stone-400 ml-auto">
+            1년이 넘는 기간은 연 단위로 나눠서 받아주세요
+          </p>
         </div>
       </div>
 
@@ -195,7 +240,7 @@ export default function ExportPage() {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-stone-800">전체 통합</p>
-          <p className="text-xs text-stone-400 mt-0.5">입고 / 출고 / 생산차감 / 조정 / 합산 내역</p>
+          <p className="text-xs text-stone-400 mt-0.5">입고 / 출고 / 생산차감 / 합산 내역</p>
         </div>
         <Button
           size="sm"

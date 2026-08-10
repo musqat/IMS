@@ -16,7 +16,7 @@ IMS는 회사 단위 계정과 초대 기반 Partnership으로 협력사를 연�
 | 영역 | 기술 |
 |------|------|
 | Backend | Java 21, Spring Boot 3.x, Spring Security, Spring Data JPA, Spring Batch |
-| Database | MySQL 8.x (주 저장소), Redis (Refresh Token · BOM 캐시) |
+| Database | PostgreSQL 16 (주 저장소), Redis (Refresh Token · BOM 캐시) |
 | Frontend | Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui |
 | Auth | JWT — Access Token (1h) + Refresh Token (2주, Redis 저장) |
 | Test | JUnit 5, Mockito, @WebMvcTest, @DataJpaTest |
@@ -40,7 +40,7 @@ IMS는 회사 단위 계정과 초대 기반 Partnership으로 협력사를 연�
 └──────┬──────────────────────────────┬────────────────┘
        │ JPA                          │ RedisTemplate
 ┌──────▼──────┐               ┌───────▼───────┐
-│  MySQL 8    │               │     Redis     │
+│ PostgreSQL16│               │     Redis     │
 │  (주 DB)    │               │  (토큰 · 캐시) │
 └─────────────┘               └───────────────┘
 ```
@@ -142,14 +142,14 @@ docker-compose up -d
 |--------|------|
 | Frontend | http://localhost:3000 |
 | Backend API | http://localhost:8080/api/v1 |
-| MySQL | localhost:3306 |
+| PostgreSQL | localhost:5432 |
 | Redis | localhost:6379 |
 
 ### 로컬 개발 실행
 
 ```bash
-# MySQL + Redis만 Docker로 실행
-docker-compose up -d mysql redis
+# PostgreSQL + Redis만 Docker로 실행
+docker-compose up -d postgres redis
 
 # 백엔드
 cd backend
