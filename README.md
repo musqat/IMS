@@ -146,7 +146,7 @@ BOM 부품 재고는 단일 IN 쿼리로 일괄 조회하여 N+1 방지.
 
 ## 테스트 전략
 
-TDD로 개발. 총 **240개 이상의 테스트 케이스**, 라인 커버리지 90%+.
+TDD로 개발. 총 **277개 테스트**, JaCoCo 기준 **라인 92.2% / 브랜치 84.3%**.
 
 | 레이어 | 도구 | 검증 대상 |
 |--------|------|----------|
@@ -154,7 +154,15 @@ TDD로 개발. 총 **240개 이상의 테스트 케이스**, 라인 커버리지
 | Controller 슬라이스 | @WebMvcTest | 엔드포인트 응답 코드, 인증 필터, JSON 직렬화 |
 | Repository 슬라이스 | @DataJpaTest | BOM 다단계 조회, 재고 집계 쿼리 |
 | 배치 통합 | @SpringBootTest | PENDING → SETTLED 전체 플로우, ANOMALY 처리 |
-| Security | Spring Security Test | 미인증 401, 권한 없음 403 |
+| Security | Spring Security Test | JWT 필터 분기, 미인증 401, 권한 없음 403 |
+
+```bash
+./gradlew test jacocoTestReport   # 리포트: build/reports/jacoco/test/html/index.html
+```
+
+커버리지 수치는 DTO · 엔티티 · 설정 클래스를 제외한 값입니다. 롬복이 생성하는 게터·빌더가
+포함되면 수치는 올라가지만 실제 로직의 검증 정도를 나타내지 못하기 때문입니다.
+`jacocoTestCoverageVerification`에 라인 90% / 브랜치 80% 하한선을 두어 회귀를 막습니다.
 
 ## Getting Started
 
