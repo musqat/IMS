@@ -16,3 +16,13 @@
 
 # Git worktrees
 .worktrees/
+
+# 빌드 산출물 (커버리지 리포트는 gradle이 매번 생성한다)
+backend/htmlReport/
+backend/test-output.txt
+
+# 에이전트 도구 설정
+.claude/
+.agents/
+skills-lock.json
+docs/superpowers/

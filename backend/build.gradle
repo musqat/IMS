@@ -1,5 +1,6 @@
 plugins {
 	id 'java'
+	id 'jacoco'
 	id 'org.springframework.boot' version '3.5.0'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
@@ -50,4 +51,51 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	finalizedBy jacocoTestReport
+}
+
+// 커버리지에서 제외할 대상.
+// DTO/엔티티/설정은 로직이 없거나 롬복 생성 코드라 수치만 부풀린다.
+def jacocoExcludes = [
+		'**/ImsApplication*',
+		'**/dto/**',
+		'**/entity/**',
+		'**/*Request*',
+		'**/*Response*',
+		'**/config/**',
+]
+
+jacocoTestReport {
+	dependsOn test
+	reports {
+		html.required = true
+		xml.required = true
+	}
+	afterEvaluate {
+		classDirectories.setFrom(files(classDirectories.files.collect {
+			fileTree(dir: it, exclude: jacocoExcludes)
+		}))
+	}
+}
+
+// 커버리지 하한선. 현재 수치(라인 92.2% / 브랜치 84.3%)보다 조금 낮게 잡아
+// 회귀만 막는다. 수치를 올리는 것이 목적이 아니라 떨어뜨리지 않는 것이 목적이다.
+jacocoTestCoverageVerification {
+	violationRules {
+		rule {
+			limit {
+				counter = 'LINE'
+				minimum = 0.90
+			}
+			limit {
+				counter = 'BRANCH'
+				minimum = 0.80
+			}
+		}
+	}
+	afterEvaluate {
+		classDirectories.setFrom(files(classDirectories.files.collect {
+			fileTree(dir: it, exclude: jacocoExcludes)
+		}))
+	}
 }

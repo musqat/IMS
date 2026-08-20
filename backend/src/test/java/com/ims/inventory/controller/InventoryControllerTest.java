@@ -10,6 +10,7 @@ import com.ims.inventory.dto.request.AdjustRequest;
 import com.ims.inventory.dto.request.InboundRequest;
 import com.ims.inventory.dto.request.OutboundRequest;
 import com.ims.inventory.dto.request.SafetyStockUpdateRequest;
+import com.ims.inventory.dto.response.InventoryExportRow;
 import com.ims.inventory.dto.response.InventoryHistoryResponse;
 import com.ims.inventory.dto.response.InventoryResponse;
 import com.ims.inventory.dto.response.MaxProducibleResponse;
@@ -30,6 +31,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -224,6 +226,78 @@ class InventoryControllerTest {
     @DisplayName("부족 재고 분석 조회 실패 - 미인증 401")
     void getShortageAnalysis_unauthorized() throws Exception {
         mockMvc.perform(get("/api/v1/warehouses/1/inventories/shortage-analysis"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    // ===================== 이력 Export (엑셀) =====================
+
+    @Test
+    @DisplayName("이력 Export 조회 성공 - 200 OK")
+    void getWarehouseHistory_success() throws Exception {
+        given(inventoryService.getWarehouseHistory(eq(1L), eq(1L), any(), any(), any()))
+                .willReturn(List.of(new InventoryExportRow(
+                        "P001", "PCB기판", InventoryHistoryType.IN, 100, LocalDate.of(2026, 8, 1))));
+
+        mockMvc.perform(get("/api/v1/warehouses/1/inventories/histories")
+                        .param("types", "IN")
+                        .param("from", "2026-08-01")
+                        .param("to", "2026-08-10")
+                        .with(authentication(auth(1L))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].itemCode").value("P001"))
+                .andExpect(jsonPath("$.data[0].delta").value(100));
+    }
+
+    @Test
+    @DisplayName("이력 Export 조회 실패 - 시작일이 종료일보다 늦으면 400")
+    void getWarehouseHistory_fromAfterTo_badRequest() throws Exception {
+        mockMvc.perform(get("/api/v1/warehouses/1/inventories/histories")
+                        .param("types", "IN")
+                        .param("from", "2026-08-10")
+                        .param("to", "2026-08-01")
+                        .with(authentication(auth(1L))))
+                .andExpect(status().isBadRequest());
+
+        then(inventoryService).should(never())
+                .getWarehouseHistory(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("이력 Export 조회 실패 - 조회 기간이 1년을 넘으면 400")
+    void getWarehouseHistory_rangeTooLarge_badRequest() throws Exception {
+        mockMvc.perform(get("/api/v1/warehouses/1/inventories/histories")
+                        .param("types", "IN")
+                        .param("from", "2025-01-01")
+                        .param("to", "2026-08-10")
+                        .with(authentication(auth(1L))))
+                .andExpect(status().isBadRequest());
+
+        then(inventoryService).should(never())
+                .getWarehouseHistory(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("이력 Export 조회 - 정확히 1년은 허용된다 (경계값)")
+    void getWarehouseHistory_exactlyOneYear_ok() throws Exception {
+        given(inventoryService.getWarehouseHistory(any(), any(), any(), any(), any()))
+                .willReturn(List.of());
+
+        // from.plusYears(1).isBefore(to) 가 false여야 통과한다.
+        // 프런트의 '최근 1년' 프리셋이 정확히 이 경계를 만들어내므로 반드시 열려 있어야 한다.
+        mockMvc.perform(get("/api/v1/warehouses/1/inventories/histories")
+                        .param("types", "IN")
+                        .param("from", "2025-08-10")
+                        .param("to", "2026-08-10")
+                        .with(authentication(auth(1L))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("이력 Export 조회 실패 - 미인증 401")
+    void getWarehouseHistory_unauthorized() throws Exception {
+        mockMvc.perform(get("/api/v1/warehouses/1/inventories/histories")
+                        .param("from", "2026-08-01")
+                        .param("to", "2026-08-10"))
                 .andExpect(status().isUnauthorized());
     }
 }
