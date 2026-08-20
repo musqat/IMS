@@ -55,6 +55,10 @@ public class SettlementJobConfig {
 
     /**
      * 결산 Tasklet
+     * - 레코드 단위로 예외를 격리한다. REQUIRES_NEW는 롤백만 분리할 뿐
+     *   루프가 계속 도는 것까지 보장하지 않는다
+     * - 실패 건이 있으면 마지막에 예외를 던져 Step을 실패로 끝낸다.
+     *   예외처리를 안하면 JobInstance가 완료 처리되어 같은 날 재실행이 막히기 때문
      */
     @Bean
     @StepScope
@@ -63,12 +67,31 @@ public class SettlementJobConfig {
             List<ProductionRecord> pending = productionRepository.findAllByStatus(ProductionStatus.PENDING);
             log.info("[결산 배치] 대상 레코드 수: {}", pending.size());
 
+            int succeeded = 0;
+            int failed = 0;
+
             for (ProductionRecord record : pending) {
-                Settlement settlement = settlementService.settle(record);
-                log.info("[결산 배치] 완료 - recordId={}, result={}",
-                        record.getId(), settlement.getResult());
-                // REQUIRES_NEW 커밋 후 1차 캐시 초기화 — 대량 처리 시 메모리 누수 방지
-                entityManager.clear();
+                Long recordId = record.getId();
+                try {
+                    Settlement settlement = settlementService.settle(record);
+                    succeeded++;
+                    log.info("[결산 배치] 완료 - recordId={}, result={}",
+                            recordId, settlement.getResult());
+                } catch (Exception e) {
+                    failed++;
+                    log.error("[결산 배치] 실패 - recordId={}", recordId, e);
+                } finally {
+                    // REQUIRES_NEW 커밋 후 1차 캐시 초기화 — 대량 처리 시 메모리 누수 방지.
+                    entityManager.clear();
+                }
+            }
+
+            log.info("[결산 배치] 종료 - 성공 {}건, 실패 {}건", succeeded, failed);
+
+            if (failed > 0) {
+                throw new IllegalStateException(
+                        "결산 실패 %d건 (성공 %d건) — 재실행 가능하도록 Step을 실패 처리한다"
+                                .formatted(failed, succeeded));
             }
 
             return RepeatStatus.FINISHED;
