@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { useWarehouses } from '@/hooks/queries/useWarehouses';
+import { useAccessibleWarehouses, warehouseLabel } from '@/hooks/queries/useWarehouses';
 import { useItems } from '@/hooks/queries/useItems';
 import { inventoryApi } from '@/lib/api/inventory';
 import { inventoryKeys } from '@/hooks/queries/useInventories';
@@ -29,7 +29,7 @@ export function ProductionOutboundSection({ productions, startDate, endDate }: P
   const [warehouseId, setWarehouseId] = useState<number | null>(null);
   const [itemId, setItemId] = useState<number | null>(null);
 
-  const { data: warehouses = [] } = useWarehouses();
+  const { data: warehouses } = useAccessibleWarehouses();
   const { data: items = [] } = useItems();
   const productItems = items.filter((i) => i.type === 'PRODUCT');
 
@@ -89,7 +89,7 @@ export function ProductionOutboundSection({ productions, startDate, endDate }: P
           >
             <option value="" disabled>창고 선택</option>
             {warehouses.map((w) => (
-              <option key={w.id} value={w.id.toString()}>{w.name}</option>
+              <option key={w.id} value={w.id.toString()}>{warehouseLabel(w)}</option>
             ))}
           </select>
           <select

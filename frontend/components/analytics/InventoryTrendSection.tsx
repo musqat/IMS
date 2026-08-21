@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { useWarehouses } from '@/hooks/queries/useWarehouses';
+import { useAccessibleWarehouses, warehouseLabel } from '@/hooks/queries/useWarehouses';
 import { inventoryApi } from '@/lib/api/inventory';
 import { inventoryKeys } from '@/hooks/queries/useInventories';
 import { InventoryTrendChart } from './InventoryTrendChart';
@@ -16,7 +16,7 @@ export function InventoryTrendSection() {
   const [warehouseId, setWarehouseId] = useState<number | null>(null);
   const [itemId, setItemId] = useState<number | null>(null);
 
-  const { data: warehouses = [] } = useWarehouses();
+  const { data: warehouses } = useAccessibleWarehouses();
 
   const { data: inventoryPage } = useQuery({
     queryKey: inventoryKeys.list(warehouseId ?? 0),
@@ -55,7 +55,7 @@ export function InventoryTrendSection() {
           >
             <option value="" disabled>창고 선택</option>
             {warehouses.map((w) => (
-              <option key={w.id} value={w.id.toString()}>{w.name}</option>
+              <option key={w.id} value={w.id.toString()}>{warehouseLabel(w)}</option>
             ))}
           </select>
 

@@ -27,6 +27,14 @@ export function useSharedWarehouses() {
 }
 
 /**
+ * 드롭다운 등에서 쓰는 창고 표시명.
+ * 공유받은 창고는 소유 회사를 함께 보여줘야 어느 회사 창고인지 구분된다.
+ */
+export function warehouseLabel(w: AccessibleWarehouse): string {
+  return w.isShared ? `${w.name} (공유 · ${w.ownerCompanyName})` : w.name;
+}
+
+/**
  * 소유 창고 + 공유받은 창고를 한 목록으로 반환한다.
  * 조회·분석 화면은 두 종류를 구분할 이유가 없으므로 여기서 합친다.
  * 쓰기 화면은 permission을 보고 분기해야 한다.
