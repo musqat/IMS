@@ -10,7 +10,7 @@ interface AuthUser {
 interface AuthStore {
   user: AuthUser | null;
   isAuthenticated: boolean;
-  setAuth: (user: AuthUser, accessToken: string, refreshToken: string) => void;
+  setUser: (user: AuthUser) => void;
   clearAuth: () => void;
   updateCompanyName: (companyName: string) => void;
 }
@@ -19,13 +19,12 @@ export const useAuthStore = create<AuthStore>((set) => ({
   user: null,
   isAuthenticated: false,
 
-  setAuth: (user, accessToken, refreshToken) => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
-    }
-    set({ user, isAuthenticated: true });
-  },
+  /**
+   * 사용자 상태만 갱신한다. 토큰은 저장하지 않는다.
+   *
+   * 토큰을 쓰는 곳은 로그인(useLoginSession)과 갱신(api/client 인터셉터) 두 곳뿐이다.
+   */
+  setUser: (user) => set({ user, isAuthenticated: true }),
 
   clearAuth: () => {
     if (typeof window !== 'undefined') {
