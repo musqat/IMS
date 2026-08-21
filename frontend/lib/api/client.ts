@@ -94,6 +94,16 @@ export function unwrapAs<T>(): (res: { data: { data: T } }) => T {
   return (res) => res.data.data;
 }
 
+/**
+ * 인증 실패(401)인지 판별한다.
+ *
+ * 네트워크 단절·타임아웃·5xx는 인증 실패가 아니다. 이를 구분하지 않고 로그아웃시키면
+ * 서버가 잠시 불안정할 때 사용자 세션이 날아간다.
+ */
+export function isAuthError(error: unknown): boolean {
+  return isAxiosError(error) && error.response?.status === 401;
+}
+
 // 백엔드 ApiResponse.message 추출 (없으면 fallback 반환)
 export function getApiError(error: unknown, fallback = '오류가 발생했습니다.'): string {
   if (isAxiosError(error) && error.response?.data?.message) {

@@ -6,6 +6,8 @@ import { Plus } from 'lucide-react';
 import { ProductionTable } from '@/components/production/ProductionTable';
 import { CreateProductionDialog } from '@/components/production/CreateProductionDialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorState } from '@/components/common/ErrorState';
+import { isQueryFailed } from '@/lib/utils/queryState';
 import type { ProductionStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -21,7 +23,10 @@ export default function ProductionPage() {
   const [page, setPage] = useState(0);
 
   const { data: counts } = useProductionCounts();
-  const { data: pageData, isLoading } = useProductionsByStatus(activeStatus, page);
+  const productionsQuery = useProductionsByStatus(activeStatus, page);
+  const pageData = productionsQuery.data;
+  const isLoading = productionsQuery.isLoading;
+  const isError = isQueryFailed(productionsQuery);
 
   const records = pageData?.content ?? [];
   const totalPages = pageData?.totalPages ?? 0;
@@ -83,6 +88,9 @@ export default function ProductionPage() {
             <Skeleton key={i} className="h-14 w-full" />
           ))}
         </div>
+      ) : isError ? (
+        // 실패를 빈 배열로 흘리면 "생산 기록이 없습니다"로 보인다
+        <ErrorState message="생산 기록을 불러오지 못했습니다." onRetry={productionsQuery.refetch} />
       ) : (
         <ProductionTable records={records} />
       )}
