@@ -38,6 +38,9 @@ class WarehouseServiceTest {
     @Mock
     private DomainValidator domainValidator;
 
+    @Mock
+    private WarehouseShareService warehouseShareService;
+
     private User user;
     private Warehouse warehouse;
 
@@ -96,7 +99,7 @@ class WarehouseServiceTest {
     @Test
     @DisplayName("창고 단건 조회 성공")
     void getWarehouse_success() {
-        given(domainValidator.getOwnedWarehouse(1L, 1L)).willReturn(warehouse);
+        given(warehouseShareService.checkViewAccess(1L, 1L)).willReturn(warehouse);
 
         WarehouseResponse response = warehouseService.getWarehouse(1L, 1L);
 
@@ -104,13 +107,14 @@ class WarehouseServiceTest {
     }
 
     @Test
-    @DisplayName("창고 단건 조회 실패 - 다른 소유자")
-    void getWarehouse_notOwner() {
-        given(domainValidator.getOwnedWarehouse(2L, 1L)).willThrow(new ImsException(ErrorCode.WAREHOUSE_NOT_OWNED));
+    @DisplayName("창고 단건 조회 실패 - 소유자도 공유 대상도 아님")
+    void getWarehouse_noAccess() {
+        given(warehouseShareService.checkViewAccess(2L, 1L))
+                .willThrow(new ImsException(ErrorCode.WAREHOUSE_ACCESS_DENIED));
 
         assertThatThrownBy(() -> warehouseService.getWarehouse(2L, 1L))
                 .isInstanceOf(ImsException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WAREHOUSE_NOT_OWNED);
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WAREHOUSE_ACCESS_DENIED);
     }
 
     @Test
@@ -131,5 +135,22 @@ class WarehouseServiceTest {
         assertThatThrownBy(() -> warehouseService.deleteWarehouse(2L, 1L))
                 .isInstanceOf(ImsException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WAREHOUSE_NOT_OWNED);
+    }
+
+    @Test
+    @DisplayName("창고 단건 조회 - 공유받은 사용자도 조회할 수 있다")
+    void getWarehouse_sharedUser_canRead() {
+        // given: 999L은 소유자가 아니지만 창고를 공유받았다
+        Long sharedUserId = 999L;
+        given(warehouseShareService.checkViewAccess(sharedUserId, warehouse.getId()))
+                .willReturn(warehouse);
+
+        // when
+        WarehouseResponse result = warehouseService.getWarehouse(sharedUserId, warehouse.getId());
+
+        // then: 소유자 전용 검증을 쓰면 공유 창고 상세 화면이 이름조차 못 받는다
+        then(warehouseShareService).should().checkViewAccess(sharedUserId, warehouse.getId());
+        then(domainValidator).should(never()).getOwnedWarehouse(any(), any());
+        assertThat(result.id()).isEqualTo(warehouse.getId());
     }
 }

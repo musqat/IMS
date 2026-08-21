@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { useWarehouses } from '@/hooks/queries/useWarehouses';
+import { useAccessibleWarehouses } from '@/hooks/queries/useWarehouses';
 import { useProductionCounts } from '@/hooks/queries/useProductions';
 import { useShortageAnalysis } from '@/hooks/queries/useInventories';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,9 +9,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Warehouse, AlertTriangle, Clock, Activity, PackageX, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { ErrorState } from '@/components/common/ErrorState';
 import { isQueryFailed } from '@/lib/utils/queryState';
-import type { WarehouseResponse } from '@/lib/types';
+import type { AccessibleWarehouse } from '@/lib/types';
 
-function WarehouseShortageRow({ warehouse }: { warehouse: WarehouseResponse }) {
+function WarehouseShortageRow({ warehouse }: { warehouse: AccessibleWarehouse }) {
   const [open, setOpen] = useState(false);
   const { data: shortages = [], isLoading } = useShortageAnalysis(open ? warehouse.id : 0);
 
@@ -26,6 +26,11 @@ function WarehouseShortageRow({ warehouse }: { warehouse: WarehouseResponse }) {
             ? <ChevronDown className="h-3.5 w-3.5 text-stone-400" />
             : <ChevronRight className="h-3.5 w-3.5 text-stone-400" />}
           <span className="text-sm font-medium text-stone-700">{warehouse.name}</span>
+          {warehouse.isShared && (
+            <span className="inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-600 border border-sky-100">
+              공유 · {warehouse.ownerCompanyName}
+            </span>
+          )}
         </div>
         {isLoading ? (
           <Loader2 className="h-3.5 w-3.5 text-stone-300 animate-spin" />
@@ -76,15 +81,17 @@ function WarehouseShortageRow({ warehouse }: { warehouse: WarehouseResponse }) {
 }
 
 export default function DashboardPage() {
-  const warehousesQuery = useWarehouses();
+  const warehousesQuery = useAccessibleWarehouses();
   const countsQuery = useProductionCounts();
 
-  const warehouses = warehousesQuery.data ?? [];
+  // 부족 분석은 소유 창고와 공유받은 창고를 모두 대상으로 한다.
+  // 본사가 하청 창고의 부족분을 확인하는 것이 이 화면의 목적이다
+  const warehouses = warehousesQuery.data;
   const counts = countsQuery.data;
 
   const isLoading = warehousesQuery.isLoading || countsQuery.isLoading;
   // 하나라도 실패하면 KPI 숫자가 0으로 보인다. 0건과 조회 실패를 구분해서 보여준다
-  const isError = isQueryFailed(warehousesQuery) || isQueryFailed(countsQuery);
+  const isError = warehousesQuery.isFailed || isQueryFailed(countsQuery);
 
   const retry = () => {
     warehousesQuery.refetch();
@@ -98,7 +105,8 @@ export default function DashboardPage() {
   const kpis = [
     {
       title: '보유 창고',
-      value: warehouses.length,
+      // 공유받은 창고는 '보유'가 아니므로 KPI에서 제외한다
+      value: warehousesQuery.owned.length,
       icon: Warehouse,
       href: '/warehouses',
       accent: true,

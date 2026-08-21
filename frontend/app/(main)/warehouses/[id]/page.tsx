@@ -5,6 +5,7 @@ import { useWarehouse, useSharedWarehouses } from '@/hooks/queries/useWarehouses
 import { useInventories } from '@/hooks/queries/useInventories';
 import { InventoryTable } from '@/components/inventory/InventoryTable';
 import { AddInventoryDialog } from '@/components/inventory/AddInventoryDialog';
+import { ProducibilityPanel } from '@/components/inventory/ProducibilityPanel';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -137,6 +138,13 @@ export default function WarehouseDetailPage() {
         <ErrorState message="재고 목록을 불러오지 못했습니다." onRetry={inventoriesQuery.refetch} />
       ) : (
         <InventoryTable warehouseId={warehouseId} items={filteredInventories} viewOnly={isViewOnly} />
+      )}
+
+      {/* 재고가 로드된 뒤에만 렌더한다. 품목 선택지를 재고 목록에서 뽑기 때문 */}
+      {!inventoriesLoading && !inventoriesFailed && (
+        <div className="mt-6">
+          <ProducibilityPanel warehouseId={warehouseId} inventories={inventories} />
+        </div>
       )}
 
       <AddInventoryDialog

@@ -113,7 +113,8 @@ export interface InventoryExportRow {
 export interface MaxProducibleResponse {
   itemId: number;
   itemName: string;
-  maxQuantity: number;
+  /** BOM이 없으면 차감할 부품이 없다는 뜻이라 null(제한 없음)이 온다 */
+  maxQuantity: number | null;
 }
 
 export interface ItemResponse {
@@ -163,4 +164,21 @@ export interface ProductionResponse {
   status: ProductionStatus;
   settlement: SettlementResponse | null;
   createdAt: string;
+}
+
+/**
+ * 소유 창고와 공유받은 창고를 한 목록으로 다루기 위한 뷰 모델.
+ * 두 API의 응답 형태가 달라(WarehouseResponse / WarehouseShareResponse)
+ * 화면에서 매번 분기하지 않도록 공통 필드만 추린다.
+ */
+export interface AccessibleWarehouse {
+  id: number;
+  name: string;
+  location: string;
+  ownerId: number;
+  ownerCompanyName: string;
+  /** 공유받은 창고면 true. 소유 창고는 false */
+  isShared: boolean;
+  /** 소유 창고는 항상 FULL로 취급한다 */
+  permission: 'VIEW' | 'FULL';
 }
