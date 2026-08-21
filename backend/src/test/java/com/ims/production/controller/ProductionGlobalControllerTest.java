@@ -75,7 +75,7 @@ class ProductionGlobalControllerTest {
     @DisplayName("상태별 카운트 조회 - 집계 결과 반환")
     void getCounts_returnsStatusCounts() throws Exception {
         // given
-        ProductionCountsResponse counts = new ProductionCountsResponse(3L, 10L, 2L, 1L);
+        ProductionCountsResponse counts = ProductionCountsResponse.of(3L, 10L, 2L, 1L);
         given(productionService.getStatusCounts(1L)).willReturn(counts);
 
         // when & then
@@ -85,7 +85,23 @@ class ProductionGlobalControllerTest {
                 .andExpect(jsonPath("$.data.pending").value(3))
                 .andExpect(jsonPath("$.data.settled").value(10))
                 .andExpect(jsonPath("$.data.cancelled").value(2))
-                .andExpect(jsonPath("$.data.anomaly").value(1));
+                .andExpect(jsonPath("$.data.anomaly").value(1))
+                .andExpect(jsonPath("$.data.total").value(15));
+    }
+
+    @Test
+    @DisplayName("total은 pending·settled·cancelled의 합이며 anomaly는 제외한다")
+    void getCounts_totalExcludesAnomaly() throws Exception {
+        // given — anomaly는 결산 결과 라벨이라 settled에 이미 포함되어 있다
+        given(productionService.getStatusCounts(1L))
+                .willReturn(ProductionCountsResponse.of(3L, 10L, 2L, 7L));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/productions/counts")
+                        .with(authentication(auth(1L))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.anomaly").value(7))
+                .andExpect(jsonPath("$.data.total").value(15));
     }
 
     @Test

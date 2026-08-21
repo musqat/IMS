@@ -142,7 +142,7 @@ export interface ProductionCounts {
   settled: number;
   cancelled: number;
   anomaly: number;
-  total: number; // 백엔드 record의 total() 메서드가 Jackson에 의해 직렬화됨
+  total: number; // pending + settled + cancelled
 }
 export type SettlementResult = 'SUCCESS' | 'ANOMALY' | 'FAILED';
 
