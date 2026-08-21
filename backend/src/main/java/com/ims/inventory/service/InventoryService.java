@@ -86,7 +86,7 @@ public class InventoryService {
     @Transactional
     public InventoryResponse adjustIn(Long userId, Long warehouseId, Long itemId, InboundRequest request) {
         warehouseShareService.checkFullAccess(userId, warehouseId);
-        Inventory inventory = getInventoryOrThrow(warehouseId, itemId);
+        Inventory inventory = getInventoryForUpdate(warehouseId, itemId);
         inventory.add(request.quantity());
         inventoryHistoryWriter.save(inventory, InventoryHistoryType.IN, +request.quantity(), request.memo());
         return InventoryResponse.from(inventory);
@@ -100,7 +100,7 @@ public class InventoryService {
     @Transactional
     public InventoryResponse adjustOut(Long userId, Long warehouseId, Long itemId, OutboundRequest request) {
         warehouseShareService.checkFullAccess(userId, warehouseId);
-        Inventory inventory = getInventoryOrThrow(warehouseId, itemId);
+        Inventory inventory = getInventoryForUpdate(warehouseId, itemId);
         inventory.deduct(request.quantity());
         inventoryHistoryWriter.save(inventory, InventoryHistoryType.OUT, -request.quantity(), request.memo());
         return InventoryResponse.from(inventory);
@@ -114,7 +114,7 @@ public class InventoryService {
     @Transactional
     public InventoryResponse adjust(Long userId, Long warehouseId, Long itemId, AdjustRequest request) {
         warehouseShareService.checkFullAccess(userId, warehouseId);
-        Inventory inventory = getInventoryOrThrow(warehouseId, itemId);
+        Inventory inventory = getInventoryForUpdate(warehouseId, itemId);
         int delta = request.quantity() - inventory.getQuantity();
         inventory.setQuantity(request.quantity());
         inventoryHistoryWriter.save(inventory, InventoryHistoryType.ADJUSTMENT, delta, request.memo());
@@ -162,7 +162,7 @@ public class InventoryService {
      * 최대 생산 가능 수량 계산
      * - BOM 트리 전체 탐색 후 부품별 재고 조회
      * - min(재고 / 필요수량) 반환, BOM 없거나 재고 없으면 0
-     * - 품목은 창고 재고에서 해석하고 BOM은 그 품목의 소유자 기준으로 조회한다.
+     * - 품목은 창고 재고에서 찾고 BOM은 그 품목 주인 기준으로 조회한다.
      *   창고 소유자를 기준으로 삼으면 안 된다. 물류 창고처럼 남의 품목을
      *   보관하기만 하는 창고에서는 창고 소유자와 품목 소유자가 늘 다르다
      */
@@ -284,7 +284,7 @@ public class InventoryService {
     @Transactional
     public InventoryResponse updateSafetyStock(Long userId, Long warehouseId, Long itemId, SafetyStockUpdateRequest request) {
         warehouseShareService.checkFullAccess(userId, warehouseId);
-        Inventory inventory = getInventoryOrThrow(warehouseId, itemId);
+        Inventory inventory = getInventoryForUpdate(warehouseId, itemId);
         inventory.updateSafetyStock(request.safetyStock());
         return InventoryResponse.from(inventory);
     }
@@ -310,10 +310,20 @@ public class InventoryService {
 
     //======================== 헬퍼 메소드 ===========================//
 
-    /** 창고 + 품목으로 재고 조회, 없으면 예외 */
+    /** 창고 + 품목으로 재고 조회, 없으면 예외 (조회 전용 — 락 없음) */
     private Inventory getInventoryOrThrow(Long warehouseId, Long itemId) {
         return inventoryRepository.findByWarehouseIdAndItemId(warehouseId, itemId)
                 .orElseThrow(() -> new ImsException(ErrorCode.INVENTORY_NOT_FOUND));
+    }
+
+    /**
+     * 재고 변경용 조회 (비관적 락)
+     * - 입출고·보정은 read-modify-write라 락이 없으면 나중 쓰기가 앞선 쓰기를 덮어쓴다
+     * - deduct의 음수 검증으로는 못 막는다. 각 스레드가 자기가 읽은 낡은 값으로 검사해 전부 통과한다
+     */
+    private Inventory getInventoryForUpdate(Long warehouseId, Long itemId) {
+        return inventoryRepository.findByWarehouseIdAndItemIdForUpdate(warehouseId, itemId)
+        .orElseThrow(() -> new ImsException(ErrorCode.INVENTORY_NOT_FOUND));
     }
 
     /**

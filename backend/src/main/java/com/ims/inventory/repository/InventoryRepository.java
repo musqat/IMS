@@ -48,6 +48,16 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long>, Jpa
             @Param("warehouseId") Long warehouseId,
             @Param("itemIds") List<Long> itemIds);
 
+    /**
+     * 재고 변경용 비관적 락 단건 조회
+     * - 결산과 같은 PESSIMISTIC_WRITE를 써야 사용자 출고와 자정 결산이 서로를 막아준다
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT i FROM Inventory i WHERE i.warehouse.id = :warehouseId AND i.item.id = :itemId")
+    Optional<Inventory> findByWarehouseIdAndItemIdForUpdate(
+            @Param("warehouseId") Long warehouseId,
+            @Param("itemId") Long itemId);
+
     /** 창고 내 아이템 확인 */
     boolean existsByWarehouseIdAndItemId(Long warehouseId, Long itemId);
 }

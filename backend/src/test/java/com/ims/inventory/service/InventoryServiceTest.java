@@ -156,7 +156,7 @@ class InventoryServiceTest {
     void adjustIn_success() {
         // given: inventory.quantity=50, 입고 qty=30 → 80
         InboundRequest request = new InboundRequest(30, null);
-        given(inventoryRepository.findByWarehouseIdAndItemId(warehouse.getId(), itemBike.getId())).willReturn(Optional.of(inventory));
+        given(inventoryRepository.findByWarehouseIdAndItemIdForUpdate(warehouse.getId(), itemBike.getId())).willReturn(Optional.of(inventory));
 
         // when
         inventoryService.adjustIn(owner.getId(), warehouse.getId(), itemBike.getId(), request);
@@ -171,7 +171,7 @@ class InventoryServiceTest {
     void adjustOut_success() {
         // given: inventory.quantity=50, 출고 qty=20 → 30
         OutboundRequest request = new OutboundRequest(20, null);
-        given(inventoryRepository.findByWarehouseIdAndItemId(warehouse.getId(), itemBike.getId())).willReturn(Optional.of(inventory));
+        given(inventoryRepository.findByWarehouseIdAndItemIdForUpdate(warehouse.getId(), itemBike.getId())).willReturn(Optional.of(inventory));
 
         // when
         inventoryService.adjustOut(owner.getId(), warehouse.getId(), itemBike.getId(), request);
@@ -186,7 +186,7 @@ class InventoryServiceTest {
     void adjustOut_insufficientStock() {
         // given: inventory.quantity=50, 출고 요청 qty=100
         OutboundRequest request = new OutboundRequest(100, null);
-        given(inventoryRepository.findByWarehouseIdAndItemId(warehouse.getId(), itemBike.getId())).willReturn(Optional.of(inventory));
+        given(inventoryRepository.findByWarehouseIdAndItemIdForUpdate(warehouse.getId(), itemBike.getId())).willReturn(Optional.of(inventory));
 
         // when & then: Inventory.deduct()에서 INSUFFICIENT_STOCK 발생
         assertThatThrownBy(() -> inventoryService.adjustOut(owner.getId(), warehouse.getId(), itemBike.getId(), request))
@@ -199,7 +199,7 @@ class InventoryServiceTest {
     void adjust_success() {
         // given: inventory.quantity=50, newQty=30 → quantity=30, delta=-20
         AdjustRequest request = new AdjustRequest(30, "재고 실사");
-        given(inventoryRepository.findByWarehouseIdAndItemId(warehouse.getId(), itemBike.getId())).willReturn(Optional.of(inventory));
+        given(inventoryRepository.findByWarehouseIdAndItemIdForUpdate(warehouse.getId(), itemBike.getId())).willReturn(Optional.of(inventory));
 
         // when
         inventoryService.adjust(owner.getId(), warehouse.getId(), itemBike.getId(), request);
@@ -266,7 +266,7 @@ class InventoryServiceTest {
     @DisplayName("안전재고 수정 성공")
     void updateSafetyStock_success() {
         SafetyStockUpdateRequest request = new SafetyStockUpdateRequest(30);
-        given(inventoryRepository.findByWarehouseIdAndItemId(warehouse.getId(), itemBike.getId()))
+        given(inventoryRepository.findByWarehouseIdAndItemIdForUpdate(warehouse.getId(), itemBike.getId()))
                 .willReturn(Optional.of(inventory));
 
         InventoryResponse result = inventoryService.updateSafetyStock(owner.getId(), warehouse.getId(), itemBike.getId(), request);
@@ -442,7 +442,7 @@ class InventoryServiceTest {
         MaxProducibleResponse result =
                 inventoryService.calcMaxProducible(sharedUserId, warehouse.getId(), itemBike.getId());
 
-        // then: 호출자(999L) 소유 품목을 찾으면 안 된다. 창고 재고에서 품목을 해석하고
+        // then: 호출자(999L) 소유 품목을 찾으면 안 된다. 창고 재고에서 품목을 찾고
         //       BOM은 그 품목의 소유자(1L) 기준으로 조회해야 한다
         then(domainValidator).should(never()).getOwnedItem(eq(sharedUserId), any());
         then(bomService).should().getFullBomTree(itemBike.getId(), owner.getId());
@@ -479,14 +479,14 @@ class InventoryServiceTest {
 
     // ===================== 쓰기 권한 =====================
     // 재고 변경은 소유자 전용이 아니라 FULL 권한 공유자도 가능해야 한다.
-    // 소유자 전용 검증(getOwnedWarehouse)을 쓰면 FULL 권한이 무의미해진다.
+    // 소유자 전용 검증(getOwnedWarehouse)을 쓰면 FULL 권한이 VIEW와 같아진다.
 
     @Test
     @DisplayName("입고 - 소유자 전용이 아니라 FULL 권한 검증을 사용한다")
     void adjustIn_usesFullAccessCheck() {
         // given
         InboundRequest request = new InboundRequest(30, null);
-        given(inventoryRepository.findByWarehouseIdAndItemId(warehouse.getId(), itemBike.getId()))
+        given(inventoryRepository.findByWarehouseIdAndItemIdForUpdate(warehouse.getId(), itemBike.getId()))
                 .willReturn(Optional.of(inventory));
 
         // when
@@ -501,7 +501,7 @@ class InventoryServiceTest {
     @DisplayName("출고 - 소유자 전용이 아니라 FULL 권한 검증을 사용한다")
     void adjustOut_usesFullAccessCheck() {
         OutboundRequest request = new OutboundRequest(10, null);
-        given(inventoryRepository.findByWarehouseIdAndItemId(warehouse.getId(), itemBike.getId()))
+        given(inventoryRepository.findByWarehouseIdAndItemIdForUpdate(warehouse.getId(), itemBike.getId()))
                 .willReturn(Optional.of(inventory));
 
         inventoryService.adjustOut(owner.getId(), warehouse.getId(), itemBike.getId(), request);
@@ -514,7 +514,7 @@ class InventoryServiceTest {
     @DisplayName("재고 보정 - 소유자 전용이 아니라 FULL 권한 검증을 사용한다")
     void adjust_usesFullAccessCheck() {
         AdjustRequest request = new AdjustRequest(80, null);
-        given(inventoryRepository.findByWarehouseIdAndItemId(warehouse.getId(), itemBike.getId()))
+        given(inventoryRepository.findByWarehouseIdAndItemIdForUpdate(warehouse.getId(), itemBike.getId()))
                 .willReturn(Optional.of(inventory));
 
         inventoryService.adjust(owner.getId(), warehouse.getId(), itemBike.getId(), request);
@@ -526,7 +526,7 @@ class InventoryServiceTest {
     @Test
     @DisplayName("안전재고 수정 - 소유자 전용이 아니라 FULL 권한 검증을 사용한다")
     void updateSafetyStock_usesFullAccessCheck() {
-        given(inventoryRepository.findByWarehouseIdAndItemId(warehouse.getId(), itemBike.getId()))
+        given(inventoryRepository.findByWarehouseIdAndItemIdForUpdate(warehouse.getId(), itemBike.getId()))
                 .willReturn(Optional.of(inventory));
 
         inventoryService.updateSafetyStock(
@@ -551,7 +551,7 @@ class InventoryServiceTest {
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WAREHOUSE_ACCESS_DENIED);
 
         // 권한 검증에서 막혀 재고를 건드리지 않아야 한다
-        then(inventoryRepository).should(never()).findByWarehouseIdAndItemId(any(), any());
+        then(inventoryRepository).should(never()).findByWarehouseIdAndItemIdForUpdate(any(), any());
         then(inventoryHistoryWriter).shouldHaveNoInteractions();
     }
 
