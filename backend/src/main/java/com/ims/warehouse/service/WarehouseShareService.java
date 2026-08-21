@@ -131,15 +131,18 @@ public class WarehouseShareService {
      * 창고 조회 권한 검증 (다른 서비스에서 호출)
      * - 소유자면 통과
      * - WarehouseShare에 VIEW 또는 FULL 권한 있으면 통과
+     * - 검증한 창고를 반환한다. 품목·BOM처럼 창고 소유자 기준으로 조회해야 하는
+     *   후속 작업에서 소유자를 다시 조회하지 않도록 하기 위함이다
      */
-    public void checkViewAccess(Long userId, Long warehouseId) {
+    public Warehouse checkViewAccess(Long userId, Long warehouseId) {
         Warehouse warehouse = warehouseRepository.findById(warehouseId)
                 .orElseThrow(() -> new ImsException(ErrorCode.WAREHOUSE_NOT_FOUND));
 
-        if (warehouse.getOwner().getId().equals(userId)) return;
+        if (warehouse.getOwner().getId().equals(userId)) return warehouse;
 
         warehouseShareRepository.findByWarehouseIdAndSharedWithId(warehouseId, userId)
                 .orElseThrow(() -> new ImsException(ErrorCode.WAREHOUSE_ACCESS_DENIED));
+        return warehouse;
     }
 
 }
