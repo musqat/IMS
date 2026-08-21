@@ -36,9 +36,18 @@ public class DomainValidator {
      * 품목 조회 + 소유자 검증
      */
     public Item getOwnedItem(Long userId, Long itemId) {
+        return getItemOwnedBy(userId, itemId);
+    }
+
+    /**
+     * 품목 조회 + 지정한 소유자 검증
+     * - 공유 창고 조회처럼 호출자와 품목 소유자가 다른 경우에 쓴다
+     * - 창고 접근 권한은 호출 전에 별도로 검증되어 있어야 한다
+     */
+    public Item getItemOwnedBy(Long ownerId, Long itemId) {
         Item item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new ImsException(ErrorCode.ITEM_NOT_FOUND));
-        if (!item.getOwner().getId().equals(userId)) {
+        if (!item.getOwner().getId().equals(ownerId)) {
             throw new ImsException(ErrorCode.ITEM_NOT_OWNED);
         }
         return item;

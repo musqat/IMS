@@ -160,11 +160,15 @@ public class InventoryService {
      * 최대 생산 가능 수량 계산
      * - BOM 트리 전체 탐색 후 부품별 재고 조회
      * - min(재고 / 필요수량) 반환, BOM 없거나 재고 없으면 0
+     * - 품목·BOM은 창고 소유자 기준으로 조회한다. 호출자 기준으로 조회하면
+     *   공유받은 사용자는 소유자의 품목을 찾지 못해 항상 실패한다
      */
     public MaxProducibleResponse calcMaxProducible(Long userId, Long warehouseId, Long itemId) {
-        warehouseShareService.checkViewAccess(userId, warehouseId);
-        Item item = domainValidator.getOwnedItem(userId, itemId);
-        Map<Long, Long> requirements = bomService.getFullBomTree(itemId, userId);
+        Warehouse warehouse = warehouseShareService.checkViewAccess(userId, warehouseId);
+        Long ownerId = warehouse.getOwner().getId();
+
+        Item item = domainValidator.getItemOwnedBy(ownerId, itemId);
+        Map<Long, Long> requirements = bomService.getFullBomTree(itemId, ownerId);
         if (requirements.isEmpty()) {
             // BOM 없음 = 차감할 부품이 없으므로 제한 없음(null)
             return new MaxProducibleResponse(itemId, item.getName(), null);
@@ -197,13 +201,17 @@ public class InventoryService {
      *   (완성품 목록 / BOM 인접 리스트 / 부품 재고 / 부족 부품 정보)
      */
     public List<ShortageItemResponse> getShortageAnalysis(Long userId, Long warehouseId) {
-        warehouseShareService.checkViewAccess(userId, warehouseId);
-        List<Item> products = itemRepository.findAllByOwnerIdAndType(userId, ItemType.PRODUCT);
+        Warehouse warehouse = warehouseShareService.checkViewAccess(userId, warehouseId);
+        // 창고 소유자의 완성품을 분석한다. 호출자 기준으로 조회하면 공유받은 사용자가
+        // 남의 창고를 보면서 자기 품목을 분석하게 되어 조용히 빈 결과가 나온다
+        Long ownerId = warehouse.getOwner().getId();
+
+        List<Item> products = itemRepository.findAllByOwnerIdAndType(ownerId, ItemType.PRODUCT);
         if (products.isEmpty()) return List.of();
 
         // BOM 트리 전체를 DB 1회 조회로 일괄 계산
         List<Long> productIds = products.stream().map(Item::getId).toList();
-        Map<Long, Map<Long, Long>> allBomTrees = bomService.getFullBomTrees(productIds, userId);
+        Map<Long, Map<Long, Long>> allBomTrees = bomService.getFullBomTrees(productIds, ownerId);
 
         // 모든 완성품의 부품을 한 번에 모아 재고를 1회만 조회한다.
         // 제품별로 조회하면 완성품 수만큼 쿼리가 나간다.
