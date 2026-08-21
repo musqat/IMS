@@ -118,6 +118,21 @@ class InventoryControllerTest {
     }
 
     @Test
+    @DisplayName("입고 실패 - 쓰기 권한 없으면 403 Forbidden")
+    void adjustIn_noWritePermission_returns403() throws Exception {
+        // 인증은 됐지만 해당 창고에 대한 쓰기 권한이 없는 경우 (VIEW 공유 또는 무관계)
+        given(inventoryService.adjustIn(eq(2L), eq(1L), eq(10L), any()))
+                .willThrow(new ImsException(ErrorCode.WAREHOUSE_ACCESS_DENIED));
+
+        mockMvc.perform(post("/api/v1/warehouses/1/inventories/10/in")
+                        .with(authentication(auth(2L)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new InboundRequest(50, null))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("해당 창고에 대한 접근 권한이 없습니다."));
+    }
+
+    @Test
     @DisplayName("출고 성공 - 200 OK")
     void adjustOut_success() throws Exception {
         given(inventoryService.adjustOut(eq(1L), eq(1L), eq(10L), any())).willReturn(inventoryResponse());

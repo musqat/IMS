@@ -78,12 +78,12 @@ public class InventoryService {
 
     /**
      * 입고
-     * - 소유자 검증 후 quantity 증가
+     * - 쓰기 권한 검증(소유자 또는 FULL 공유) 후 quantity 증가
      * - History(IN, delta=+qty) 기록
      */
     @Transactional
     public InventoryResponse adjustIn(Long userId, Long warehouseId, Long itemId, InboundRequest request) {
-        domainValidator.getOwnedWarehouse(userId, warehouseId);
+        warehouseShareService.checkFullAccess(userId, warehouseId);
         Inventory inventory = getInventoryOrThrow(warehouseId, itemId);
         inventory.add(request.quantity());
         inventoryHistoryWriter.save(inventory, InventoryHistoryType.IN, +request.quantity(), request.memo());
@@ -92,12 +92,12 @@ public class InventoryService {
 
     /**
      * 출고
-     * - 소유자 검증 후 quantity 차감 (재고 부족 시 예외)
+     * - 쓰기 권한 검증(소유자 또는 FULL 공유) 후 quantity 차감 (재고 부족 시 예외)
      * - History(OUT, delta=-qty) 기록
      */
     @Transactional
     public InventoryResponse adjustOut(Long userId, Long warehouseId, Long itemId, OutboundRequest request) {
-        domainValidator.getOwnedWarehouse(userId, warehouseId);
+        warehouseShareService.checkFullAccess(userId, warehouseId);
         Inventory inventory = getInventoryOrThrow(warehouseId, itemId);
         inventory.deduct(request.quantity());
         inventoryHistoryWriter.save(inventory, InventoryHistoryType.OUT, -request.quantity(), request.memo());
@@ -106,12 +106,12 @@ public class InventoryService {
 
     /**
      * 재고 실사 보정 (절대값으로 덮어씀)
-     * - 소유자 검증 후 newQuantity 로 설정
+     * - 쓰기 권한 검증(소유자 또는 FULL 공유) 후 newQuantity 로 설정
      * - History(ADJUSTMENT, delta=newQty-oldQty) 기록
      */
     @Transactional
     public InventoryResponse adjust(Long userId, Long warehouseId, Long itemId, AdjustRequest request) {
-        domainValidator.getOwnedWarehouse(userId, warehouseId);
+        warehouseShareService.checkFullAccess(userId, warehouseId);
         Inventory inventory = getInventoryOrThrow(warehouseId, itemId);
         int delta = request.quantity() - inventory.getQuantity();
         inventory.setQuantity(request.quantity());
@@ -270,11 +270,11 @@ public class InventoryService {
 
     /**
      * 안전재고 수정
-     * - 창고 소유자 검증
+     * - 쓰기 권한 검증(소유자 또는 FULL 공유)
      */
     @Transactional
     public InventoryResponse updateSafetyStock(Long userId, Long warehouseId, Long itemId, SafetyStockUpdateRequest request) {
-        domainValidator.getOwnedWarehouse(userId, warehouseId);
+        warehouseShareService.checkFullAccess(userId, warehouseId);
         Inventory inventory = getInventoryOrThrow(warehouseId, itemId);
         inventory.updateSafetyStock(request.safetyStock());
         return InventoryResponse.from(inventory);
