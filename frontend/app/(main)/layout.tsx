@@ -11,24 +11,23 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   useAuthGuard();
   const router = useRouter();
   const collapsed = useSidebarStore((s) => s.collapsed);
-  const { setAuth, isAuthenticated } = useAuthStore();
+  const { setUser, isAuthenticated } = useAuthStore();
 
   // 페이지 새로고침 시 Zustand 상태 복원 (이미 인증된 경우 스킵)
   useEffect(() => {
     if (isAuthenticated) return;
-    const accessToken = localStorage.getItem('accessToken');
-    const refreshToken = localStorage.getItem('refreshToken');
-    if (accessToken && refreshToken) {
+    // accessToken이 만료됐어도 getMe()가 401을 받고 인터셉터가 갱신한다.
+    if (localStorage.getItem('refreshToken')) {
       authApi
         .getMe()
-        .then((me) => setAuth(me, accessToken, refreshToken))
+        .then(setUser)
         .catch(() => {
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
           router.replace('/login');
         });
     }
-  }, [isAuthenticated, setAuth, router]);
+  }, [isAuthenticated, setUser, router]);
 
   return (
     <div className="flex h-screen bg-stone-50">

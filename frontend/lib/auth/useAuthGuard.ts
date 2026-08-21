@@ -21,24 +21,27 @@ function isTokenExpired(token: string): boolean {
 }
 
 /**
- * 인증 가드 — 마운트 시 1회 토큰 유무 및 만료 여부 확인
- * - 토큰 없거나 만료 시 /login으로 즉시 리다이렉트
- * - 만료된 토큰은 localStorage에서 제거
- * - 실제 갱신(refresh) 처리는 client.ts 인터셉터가 담당
+ * 인증 가드 — 마운트 시 1회 토큰 상태 확인
+ * - accessToken이 만료됐더라도 refreshToken이 살아 있으면 통과시킨다.
+ *   첫 API 호출이 401을 받고 client.ts 인터셉터가 갱신한다
+ * - 둘 다 못 쓰는 상태일 때만 정리하고 /login으로 보낸다
+ *
  */
 export function useAuthGuard() {
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
-      router.replace('/login');
-      return;
-    }
-    if (isTokenExpired(token)) {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      router.replace('/login');
-    }
-  }, []);
+    const accessToken = localStorage.getItem('accessToken');
+    const refreshToken = localStorage.getItem('refreshToken');
+
+    // accessToken이 아직 살아 있으면 그대로 진행
+    if (accessToken && !isTokenExpired(accessToken)) return;
+
+    // 만료됐어도 refreshToken이 유효하면 인터셉터가 갱신하도록 맡긴다
+    if (refreshToken && !isTokenExpired(refreshToken)) return;
+
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    router.replace('/login');
+  }, [router]);
 }
