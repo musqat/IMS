@@ -130,7 +130,7 @@ public class ProductionService {
         long anomaly = settlementRepository.countByResultAndProductionRecordWarehouseIdIn(
                 com.ims.production.entity.SettlementResult.ANOMALY, warehouseIds);
 
-        return new ProductionCountsResponse(
+        return ProductionCountsResponse.of(
                 statusMap.getOrDefault(ProductionStatus.PENDING, 0L),
                 statusMap.getOrDefault(ProductionStatus.SETTLED, 0L),
                 statusMap.getOrDefault(ProductionStatus.CANCELLED, 0L),
