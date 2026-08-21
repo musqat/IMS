@@ -10,8 +10,11 @@ import java.util.Optional;
 
 public interface WarehouseShareRepository extends JpaRepository<WarehouseShare, Long> {
 
-    /** 공유받은 창고 목록 전체 조회 (warehouse, owner) */
-    @EntityGraph(attributePaths = {"warehouse", "warehouse.owner"})
+    /**
+     * 공유받은 창고 목록 전체 조회
+     * - WarehouseShareResponse가 창고 소유자와 sharedWith의 회사명을 모두 읽는다
+     */
+    @EntityGraph(attributePaths = {"warehouse", "warehouse.owner", "sharedWith"})
     List<WarehouseShare> findAllBySharedWithId(Long sharedWithId);
 
     /** 특정 창고에 대한 특정 User의 공유 권한 조회 */

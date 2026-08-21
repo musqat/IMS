@@ -22,9 +22,7 @@ public interface ProductionRepository extends JpaRepository<ProductionRecord, Lo
     @Query("SELECT p.status, COUNT(p) FROM ProductionRecord p WHERE p.warehouse.id IN :warehouseIds GROUP BY p.status")
     List<Object[]> countGroupByStatusInWarehouses(@Param("warehouseIds") Collection<Long> warehouseIds);
 
-    /**
-     * 상태 필터 + 페이지네이션 — 접근 가능한 창고 ID 목록 기준
-     */
+    /** 상태 필터 + 페이지네이션 — 접근 가능한 창고 ID 목록 기준 */
     @EntityGraph(attributePaths = {"warehouse", "item"})
     Page<ProductionRecord> findAllByWarehouseIdInAndStatus(
             Collection<Long> warehouseIds, ProductionStatus status, Pageable pageable);

@@ -7,16 +7,16 @@ import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    /** 이메일로 유저 찾기*/
+    /** 이메일로 유저 찾기 */
     Optional<User> findByEmail(String email);
 
-    /** 이메일 중복 확인*/
+    /** 이메일 중복 확인 */
     boolean existsByEmail(String email);
 
-    /** CompanyCode 중복 확인*/
+    /** CompanyCode 중복 확인 */
     boolean existsByCompanyCode(String companyCode);
 
-    /** CompanyCode로 유저 찾기*/
+    /** CompanyCode로 유저 찾기 */
     Optional<User> findByCompanyCode(String companyCode);
 
 }

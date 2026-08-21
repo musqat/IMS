@@ -192,10 +192,9 @@ public class InventoryService {
 
     /**
      * 생산 불가 완제품 분석
-     * - 사용자 소유 완성품(PRODUCT) 전체 조회
-     * - BOM 트리를 한 번의 DB 조회로 일괄 계산 (제품 수만큼 반복 조회 방지)
-     * - 각 완성품의 부족 부품을 배치 조회 (N+1 방지)
      * - 1개도 생산 불가(재고 < 필요량)인 부품이 있는 완성품만 반환
+     * - 완성품 수와 무관하게 쿼리는 4회로 고정된다
+     *   (완성품 목록 / BOM 인접 리스트 / 부품 재고 / 부족 부품 정보)
      */
     public List<ShortageItemResponse> getShortageAnalysis(Long userId, Long warehouseId) {
         warehouseShareService.checkViewAccess(userId, warehouseId);
@@ -206,26 +205,39 @@ public class InventoryService {
         List<Long> productIds = products.stream().map(Item::getId).toList();
         Map<Long, Map<Long, Long>> allBomTrees = bomService.getFullBomTrees(productIds, userId);
 
+        // 모든 완성품의 부품을 한 번에 모아 재고를 1회만 조회한다.
+        // 제품별로 조회하면 완성품 수만큼 쿼리가 나간다.
+        Set<Long> allPartIds = allBomTrees.values().stream()
+                .flatMap(requirements -> requirements.keySet().stream())
+                .collect(Collectors.toSet());
+        if (allPartIds.isEmpty()) return List.of();
+
+        Map<Long, Integer> stockMap = inventoryRepository
+                .findAllByWarehouseIdAndItemIdIn(warehouseId, List.copyOf(allPartIds))
+                .stream()
+                .collect(Collectors.toMap(inv -> inv.getItem().getId(), Inventory::getQuantity));
+
+        // 부족 부품도 전체를 모은 뒤 1회만 조회한다
+        Set<Long> allShortagePartIds = allBomTrees.values().stream()
+                .flatMap(requirements -> requirements.entrySet().stream())
+                .filter(e -> stockMap.getOrDefault(e.getKey(), 0) < e.getValue())
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toSet());
+        if (allShortagePartIds.isEmpty()) return List.of();
+
+        Map<Long, Item> partItemMap = itemRepository.findAllById(allShortagePartIds)
+                .stream().collect(Collectors.toMap(Item::getId, i -> i));
+
         return products.stream()
                 .map(product -> {
                     Map<Long, Long> requirements = allBomTrees.getOrDefault(product.getId(), Map.of());
                     if (requirements.isEmpty()) return null;
 
-                    List<Long> partIds = List.copyOf(requirements.keySet());
-                    Map<Long, Integer> stockMap = inventoryRepository
-                            .findAllByWarehouseIdAndItemIdIn(warehouseId, partIds)
-                            .stream()
-                            .collect(Collectors.toMap(inv -> inv.getItem().getId(), Inventory::getQuantity));
-
-                    // 부족 부품 ID 먼저 수집 → 아이템 배치 조회 (N+1 방지)
                     Set<Long> shortagePartIds = requirements.entrySet().stream()
                             .filter(e -> stockMap.getOrDefault(e.getKey(), 0) < e.getValue())
                             .map(Map.Entry::getKey)
                             .collect(Collectors.toSet());
                     if (shortagePartIds.isEmpty()) return null;
-
-                    Map<Long, Item> partItemMap = itemRepository.findAllById(shortagePartIds)
-                            .stream().collect(Collectors.toMap(Item::getId, i -> i));
 
                     List<PartShortageDto> shortages = requirements.entrySet().stream()
                             .filter(e -> shortagePartIds.contains(e.getKey()))

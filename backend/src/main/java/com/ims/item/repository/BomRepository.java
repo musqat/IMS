@@ -8,7 +8,11 @@ import java.util.List;
 
 public interface BomRepository extends JpaRepository<Bom, Long> {
 
-    /** 특정 품목이 parent인 BOM 목록 조회 */
+    /**
+     * 특정 품목이 parent인 BOM 목록 조회
+     * - BomResponse가 parent·child의 코드·이름을 읽으므로 함께 로딩한다
+     */
+    @EntityGraph(attributePaths = {"parent", "child"})
     List<Bom> findAllByParentId(Long parentId);
 
     /** 특정 유저 소유 BOM 전체 조회 */

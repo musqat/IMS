@@ -342,6 +342,65 @@ class InventoryServiceTest {
     }
 
     @Test
+    @DisplayName("부족 재고 분석 - 완성품이 여러 개여도 재고·부품 조회는 각각 1회")
+    void getShortageAnalysis_batchesQueriesRegardlessOfProductCount() {
+        // given: 완성품 2개가 각각 다른 부품을 쓴다
+        Item itemCar = Item.builder().id(11L).owner(owner).itemCode("CAR-001")
+                .name("B자동차").type(ItemType.PRODUCT).build();
+        Inventory tireInv = Inventory.builder().id(201L).warehouse(warehouse)
+                .item(itemTire).quantity(1).safetyStock(0).build();
+        Inventory frameInv = Inventory.builder().id(202L).warehouse(warehouse)
+                .item(itemFrame).quantity(0).safetyStock(0).build();
+
+        willDoNothing().given(warehouseShareService).checkViewAccess(owner.getId(), warehouse.getId());
+        given(itemRepository.findAllByOwnerIdAndType(owner.getId(), ItemType.PRODUCT))
+                .willReturn(List.of(itemBike, itemCar));
+        given(bomService.getFullBomTrees(List.of(itemBike.getId(), itemCar.getId()), owner.getId()))
+                .willReturn(Map.of(
+                        itemBike.getId(), Map.of(itemTire.getId(), 2L),
+                        itemCar.getId(), Map.of(itemFrame.getId(), 3L)));
+        given(inventoryRepository.findAllByWarehouseIdAndItemIdIn(eq(warehouse.getId()), any()))
+                .willReturn(List.of(tireInv, frameInv));
+        given(itemRepository.findAllById(any())).willReturn(List.of(itemTire, itemFrame));
+
+        // when
+        List<ShortageItemResponse> result =
+                inventoryService.getShortageAnalysis(owner.getId(), warehouse.getId());
+
+        // then: 두 완성품 모두 부족 판정
+        assertThat(result).hasSize(2);
+
+        // 완성품 수와 무관하게 조회는 각각 1회여야 한다.
+        // 루프 안에서 조회하면 완성품 수만큼 호출되어 이 단언이 깨진다.
+        then(inventoryRepository).should(times(1))
+                .findAllByWarehouseIdAndItemIdIn(eq(warehouse.getId()), any());
+        then(itemRepository).should(times(1)).findAllById(any());
+    }
+
+    @Test
+    @DisplayName("부족 재고 분석 - 부족 부품이 없으면 부품 정보를 조회하지 않는다")
+    void getShortageAnalysis_noShortage_skipsItemLookup() {
+        // given: 타이어 재고가 충분하다
+        Inventory tireInv = Inventory.builder().id(201L).warehouse(warehouse)
+                .item(itemTire).quantity(100).safetyStock(0).build();
+
+        willDoNothing().given(warehouseShareService).checkViewAccess(owner.getId(), warehouse.getId());
+        given(itemRepository.findAllByOwnerIdAndType(owner.getId(), ItemType.PRODUCT)).willReturn(List.of(itemBike));
+        given(bomService.getFullBomTrees(List.of(itemBike.getId()), owner.getId()))
+                .willReturn(Map.of(itemBike.getId(), Map.of(itemTire.getId(), 2L)));
+        given(inventoryRepository.findAllByWarehouseIdAndItemIdIn(eq(warehouse.getId()), any()))
+                .willReturn(List.of(tireInv));
+
+        // when
+        List<ShortageItemResponse> result =
+                inventoryService.getShortageAnalysis(owner.getId(), warehouse.getId());
+
+        // then
+        assertThat(result).isEmpty();
+        then(itemRepository).should(never()).findAllById(any());
+    }
+
+    @Test
     @DisplayName("부족 재고 분석 - BOM 없는 완성품은 분석 결과에서 제외")
     void getShortageAnalysis_noBomProduct_ignored() {
         // given: 자전거에 BOM 없음 → 분석 대상 제외
