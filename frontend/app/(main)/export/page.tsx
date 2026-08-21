@@ -13,28 +13,18 @@ import {
   Loader2,
 } from 'lucide-react';
 import { downloadXlsx } from '@/lib/utils/exportXlsx';
+import { toLocalDateString, monthsAgo } from '@/lib/utils/date';
+import { getApiError } from '@/lib/api/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { InventoryHistoryType } from '@/lib/types';
-
-/** Date를 로컬 기준 YYYY-MM-DD로. toISOString은 UTC라 KST 오전에 하루 밀린다. */
-function iso(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
 
 function defaultFrom() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 }
 function defaultTo() {
-  return iso(new Date());
-}
-
-/** 오늘로부터 n개월 전 */
-function monthsAgo(n: number) {
-  const d = new Date();
-  d.setMonth(d.getMonth() - n);
-  return iso(d);
+  return toLocalDateString(new Date());
 }
 
 const PRESETS = [
@@ -51,7 +41,7 @@ function rangeError(from: string, to: string): string | null {
   if (from > to) return '시작일이 종료일보다 클 수 없습니다.';
   const limit = new Date(from);
   limit.setFullYear(limit.getFullYear() + 1);
-  if (iso(limit) < to) return '조회 기간은 최대 1년입니다. 연 단위로 나눠서 받아주세요.';
+  if (toLocalDateString(limit) < to) return '조회 기간은 최대 1년입니다. 연 단위로 나눠서 받아주세요.';
   return null;
 }
 
@@ -77,7 +67,14 @@ export default function ExportPage() {
       return;
     }
     setLoadingKey(key);
-    try { await fn(); } finally { setLoadingKey(null); }
+    try {
+      await fn();
+    } catch (error) {
+      // catch가 없으면 네트워크 실패 시 스피너만 꺼지고 아무 안내가 없다.
+      toast.error(getApiError(error, '다운로드에 실패했습니다.'));
+    } finally {
+      setLoadingKey(null);
+    }
   };
 
   const handleExport = (types: InventoryHistoryType[], sheetName: string, filename: string, absValue = false) =>
@@ -183,7 +180,7 @@ export default function ExportPage() {
               key={p.label}
               type="button"
               className="h-7 px-2.5 rounded-md border border-stone-200 text-xs text-stone-600 hover:bg-stone-50 transition-colors"
-              onClick={() => { setFrom(p.from()); setTo(iso(new Date())); }}
+              onClick={() => { setFrom(p.from()); setTo(toLocalDateString(new Date())); }}
             >
               {p.label}
             </button>
