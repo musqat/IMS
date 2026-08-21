@@ -54,7 +54,7 @@ IMS는 회사 단위 계정과 초대 기반 Partnership으로 협력사를 연�
 | 영역 | 기술 |
 |------|------|
 | Backend | Java 21, Spring Boot 3.x, Spring Security, Spring Data JPA, Spring Batch |
-| Database | PostgreSQL 16 (주 저장소), Redis (Refresh Token · BOM 캐시) |
+| Database | PostgreSQL 16 (주 저장소), Redis (Refresh Token 저장소) |
 | Frontend | Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui |
 | Auth | JWT — Access Token (1h) + Refresh Token (2주, Redis 저장) |
 | Test | JUnit 5, Mockito, @WebMvcTest, @DataJpaTest |
@@ -79,7 +79,7 @@ IMS는 회사 단위 계정과 초대 기반 Partnership으로 협력사를 연�
        │ JPA                          │ RedisTemplate
 ┌──────▼──────┐               ┌───────▼───────┐
 │ PostgreSQL16│               │     Redis     │
-│  (주 DB)    │               │  (토큰 · 캐시) │
+│  (주 DB)    │               │ (Refresh 토큰) │
 └─────────────┘               └───────────────┘
 ```
 
@@ -120,7 +120,8 @@ BOM은 ITEM 간 셀프 조인으로 다단계 구조를 구성합니다.
 
 - BOM 트리 전체 탐색 → 부품별 필요 수량 계산 → 창고 재고와 비교 → **최대 생산 가능 수량 자동 산출**
 - 순환 참조 방지 (DFS 검사)
-- BOM 탐색 결과 Redis 캐시 (TTL 1h, BOM 변경 시 evict)
+- 인접 리스트를 한 번에 로드한 뒤 인메모리 DFS로 탐색 (탐색 중 추가 쿼리 없음)
+- 서브트리 탐색 결과를 재활용하여 중복 순회 방지
 
 ### 생산 기록 & 자정 결산 배치
 
