@@ -7,19 +7,11 @@ import { ShortageBarChart } from '@/components/analytics/ShortageBarChart';
 import { DateRangeFilter } from '@/components/analytics/DateRangeFilter';
 import { ProductionOutboundSection } from '@/components/analytics/ProductionOutboundSection';
 import { InventoryTrendSection } from '@/components/analytics/InventoryTrendSection';
-
-function toDateStr(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
-function subtractDays(n: number) {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return toDateStr(d);
-}
+import { toLocalDateString, daysAgo } from '@/lib/utils/date';
 
 export default function AnalyticsPage() {
-  const today = toDateStr(new Date());
-  const [startDate, setStartDate] = useState(subtractDays(30));
+  const today = toLocalDateString(new Date());
+  const [startDate, setStartDate] = useState(daysAgo(30));
   const [endDate, setEndDate] = useState(today);
 
   const { data: productions = [], isLoading } = useAllProductions();

@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { toLocalDateString, daysAgo } from '@/lib/utils/date';
 
 type RangePreset = '1M' | '3M' | '1Y' | 'custom';
 
@@ -20,37 +21,28 @@ interface DateRangeFilterProps {
   onRangeChange: (startDate: string, endDate: string) => void;
 }
 
-function toDateStr(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
-function subtractDays(n: number) {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return toDateStr(d);
-}
-
 export function DateRangeFilter({ onRangeChange }: DateRangeFilterProps) {
   const [preset, setPreset] = useState<RangePreset>('1M');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
-  const today = toDateStr(new Date());
+  const today = toLocalDateString(new Date());
 
   function handlePreset(p: RangePreset) {
     setPreset(p);
     if (p !== 'custom') {
       const days = PRESETS.find((x) => x.value === p)!.days!;
-      onRangeChange(subtractDays(days), today);
+      onRangeChange(daysAgo(days), today);
     }
   }
 
   function handleCustomStart(val: string) {
     setCustomStart(val);
-    onRangeChange(val || subtractDays(30), customEnd || today);
+    onRangeChange(val || daysAgo(30), customEnd || today);
   }
 
   function handleCustomEnd(val: string) {
     setCustomEnd(val);
-    onRangeChange(customStart || subtractDays(30), val || today);
+    onRangeChange(customStart || daysAgo(30), val || today);
   }
 
   return (
