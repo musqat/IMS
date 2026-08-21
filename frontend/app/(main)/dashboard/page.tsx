@@ -7,6 +7,8 @@ import { useShortageAnalysis } from '@/hooks/queries/useInventories';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Warehouse, AlertTriangle, Clock, Activity, PackageX, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { ErrorState } from '@/components/common/ErrorState';
+import { isQueryFailed } from '@/lib/utils/queryState';
 import type { WarehouseResponse } from '@/lib/types';
 
 function WarehouseShortageRow({ warehouse }: { warehouse: WarehouseResponse }) {
@@ -74,9 +76,20 @@ function WarehouseShortageRow({ warehouse }: { warehouse: WarehouseResponse }) {
 }
 
 export default function DashboardPage() {
-  const { data: warehouses = [], isLoading: warehousesLoading } = useWarehouses();
-  const { data: counts, isLoading: countsLoading } = useProductionCounts();
-  const isLoading = warehousesLoading || countsLoading;
+  const warehousesQuery = useWarehouses();
+  const countsQuery = useProductionCounts();
+
+  const warehouses = warehousesQuery.data ?? [];
+  const counts = countsQuery.data;
+
+  const isLoading = warehousesQuery.isLoading || countsQuery.isLoading;
+  // 하나라도 실패하면 KPI 숫자가 0으로 보인다. 0건과 조회 실패를 구분해서 보여준다
+  const isError = isQueryFailed(warehousesQuery) || isQueryFailed(countsQuery);
+
+  const retry = () => {
+    warehousesQuery.refetch();
+    countsQuery.refetch();
+  };
 
   const totalProductions = counts?.total ?? 0;
   const totalPending = counts?.pending ?? 0;
@@ -119,7 +132,16 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-stone-900">대시보드</h1>
 
+      {isError && (
+        <Card className="border-stone-200">
+          <CardContent className="pt-6">
+            <ErrorState onRetry={retry} />
+          </CardContent>
+        </Card>
+      )}
+
       {/* KPI 카드 */}
+      {!isError && (
       <div className="grid grid-cols-4 gap-4">
         {isLoading
           ? Array.from({ length: 4 }).map((_, i) => (
@@ -156,8 +178,10 @@ export default function DashboardPage() {
               );
             })}
       </div>
+      )}
 
       {/* 생산 불가 완제품 - 창고별 */}
+      {!isError && (
       <Card className="border-stone-200">
         <CardHeader className="flex flex-row items-center gap-2 pb-3">
           <PackageX className="h-4 w-4 text-rose-400" />
@@ -181,6 +205,7 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

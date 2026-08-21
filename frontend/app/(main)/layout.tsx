@@ -6,6 +6,7 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { useAuthStore, useSidebarStore } from '@/store/authStore';
 import { authApi } from '@/lib/api/auth';
+import { isAuthError } from '@/lib/api/client';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   useAuthGuard();
@@ -21,7 +22,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       authApi
         .getMe()
         .then(setUser)
-        .catch(() => {
+        .catch((error) => {
+          // 401은 인터셉터가 먼저 갱신을 시도하므로, 여기까지 온 401은 갱신도 실패한 경우다.
+          if (!isAuthError(error)) return;
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
           router.replace('/login');

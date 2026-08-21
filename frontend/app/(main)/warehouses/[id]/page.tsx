@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Search, MapPin, Plus } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorState } from '@/components/common/ErrorState';
+import { isQueryFailed } from '@/lib/utils/queryState';
 import { cn } from '@/lib/utils';
 import type { ItemType } from '@/lib/types';
 
@@ -30,7 +32,10 @@ export default function WarehouseDetailPage() {
   const { user } = useAuthStore();
   const { data: warehouse, isLoading: warehouseLoading } = useWarehouse(warehouseId);
   const { data: sharedWarehouses = [], isLoading: sharedLoading } = useSharedWarehouses();
-  const { data: inventories = [], isLoading: inventoriesLoading } = useInventories(warehouseId, keyword || undefined);
+  const inventoriesQuery = useInventories(warehouseId, keyword || undefined);
+  const inventories = inventoriesQuery.data ?? [];
+  const inventoriesLoading = inventoriesQuery.isLoading;
+  const inventoriesFailed = isQueryFailed(inventoriesQuery);
 
   // 권한 판별에 필요한 데이터가 모두 로드될 때까지 viewOnly로 보호
   const permissionLoading = warehouseLoading || sharedLoading || !user;
@@ -127,6 +132,9 @@ export default function WarehouseDetailPage() {
             <Skeleton key={i} className="h-12 w-full" />
           ))}
         </div>
+      ) : inventoriesFailed ? (
+        // 실패를 빈 배열로 흘리면 "등록된 재고가 없습니다"로 보인다
+        <ErrorState message="재고 목록을 불러오지 못했습니다." onRetry={inventoriesQuery.refetch} />
       ) : (
         <InventoryTable warehouseId={warehouseId} items={filteredInventories} viewOnly={isViewOnly} />
       )}
