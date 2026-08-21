@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { useWarehouses } from '@/hooks/queries/useWarehouses';
+import { useAccessibleWarehouses, warehouseLabel } from '@/hooks/queries/useWarehouses';
 import { inventoryApi } from '@/lib/api/inventory';
 import { Button } from '@/components/ui/button';
 import {
@@ -51,7 +51,7 @@ const inputCls = cn(
 );
 
 export default function ExportPage() {
-  const { data: warehouses = [] } = useWarehouses();
+  const { data: warehouses } = useAccessibleWarehouses();
   const [warehouseId, setWarehouseId] = useState<number | null>(null);
   const [from, setFrom] = useState(defaultFrom());
   const [to, setTo] = useState(defaultTo());
@@ -161,7 +161,7 @@ export default function ExportPage() {
           >
             <option value="" disabled>창고를 선택하세요</option>
             {warehouses.map((w) => (
-              <option key={w.id} value={w.id.toString()}>{w.name}</option>
+              <option key={w.id} value={w.id.toString()}>{warehouseLabel(w)}</option>
             ))}
           </select>
         </div>

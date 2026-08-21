@@ -31,6 +31,14 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long>, Jpa
     List<Inventory> findAllByWarehouseIdAndItemIdIn(Long warehouseId, List<Long> itemIds);
 
     /**
+     * 창고에 재고가 있는 품목 전체 조회
+     * - 창고 소유자와 품목 소유자가 다를 수 있어(유통사 창고에 제조사 완성품)
+     *   품목 소유자 기준 조회만으로는 창고의 실제 재고를 알 수 없다
+     */
+    @EntityGraph(attributePaths = {"item", "item.owner"})
+    List<Inventory> findAllByWarehouseId(Long warehouseId);
+
+    /**
      * 결산용 비관적 락 일괄 조회
      * - 동시 결산 요청 시 재고 음수 방지
      */

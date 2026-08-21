@@ -33,6 +33,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -160,14 +162,17 @@ public class InventoryService {
      * 최대 생산 가능 수량 계산
      * - BOM 트리 전체 탐색 후 부품별 재고 조회
      * - min(재고 / 필요수량) 반환, BOM 없거나 재고 없으면 0
-     * - 품목·BOM은 창고 소유자 기준으로 조회한다. 호출자 기준으로 조회하면
-     *   공유받은 사용자는 소유자의 품목을 찾지 못해 항상 실패한다
+     * - 품목은 창고 재고에서 해석하고 BOM은 그 품목의 소유자 기준으로 조회한다.
+     *   창고 소유자를 기준으로 삼으면 안 된다. 물류 창고처럼 남의 품목을
+     *   보관하기만 하는 창고에서는 창고 소유자와 품목 소유자가 늘 다르다
      */
     public MaxProducibleResponse calcMaxProducible(Long userId, Long warehouseId, Long itemId) {
-        Warehouse warehouse = warehouseShareService.checkViewAccess(userId, warehouseId);
-        Long ownerId = warehouse.getOwner().getId();
+        warehouseShareService.checkViewAccess(userId, warehouseId);
 
-        Item item = domainValidator.getItemOwnedBy(ownerId, itemId);
+        Item item = resolveWarehouseItem(userId, warehouseId, itemId);
+        // BOM은 품목 소유자가 등록한다. 창고 소유자 기준으로 찾으면
+        // 남의 창고에 보관된 내 품목의 BOM을 찾지 못한다
+        Long ownerId = item.getOwner().getId();
         Map<Long, Long> requirements = bomService.getFullBomTree(itemId, ownerId);
         if (requirements.isEmpty()) {
             // BOM 없음 = 차감할 부품이 없으므로 제한 없음(null)
@@ -202,16 +207,20 @@ public class InventoryService {
      */
     public List<ShortageItemResponse> getShortageAnalysis(Long userId, Long warehouseId) {
         Warehouse warehouse = warehouseShareService.checkViewAccess(userId, warehouseId);
-        // 창고 소유자의 완성품을 분석한다. 호출자 기준으로 조회하면 공유받은 사용자가
-        // 남의 창고를 보면서 자기 품목을 분석하게 되어 조용히 빈 결과가 나온다
-        Long ownerId = warehouse.getOwner().getId();
 
-        List<Item> products = itemRepository.findAllByOwnerIdAndType(ownerId, ItemType.PRODUCT);
+        // 분석 대상은 창고 소유자의 완성품과 이 창고에 실제로 재고가 있는 완성품의 합집합이다.
+        // 소유자 기준만 쓰면 유통사 창고처럼 남의 완성품을 보관하는 창고에서
+        // 조용히 0건이 나온다. 재고 기준만 쓰면 아직 입고하지 않은 완성품이 빠진다
+        List<Item> products = collectAnalysisTargets(warehouse, warehouseId);
         if (products.isEmpty()) return List.of();
 
-        // BOM 트리 전체를 DB 1회 조회로 일괄 계산
-        List<Long> productIds = products.stream().map(Item::getId).toList();
-        Map<Long, Map<Long, Long>> allBomTrees = bomService.getFullBomTrees(productIds, ownerId);
+        // BOM은 품목 소유자가 등록하므로 소유자별로 나눠 조회한다.
+        // 대개 한 소유자뿐이라 쿼리 수는 사실상 그대로다
+        Map<Long, Map<Long, Long>> allBomTrees = new HashMap<>();
+        products.stream()
+                .collect(Collectors.groupingBy(item -> item.getOwner().getId(),
+                        Collectors.mapping(Item::getId, Collectors.toList())))
+                .forEach((itemOwnerId, ids) -> allBomTrees.putAll(bomService.getFullBomTrees(ids, itemOwnerId)));
 
         // 모든 완성품의 부품을 한 번에 모아 재고를 1회만 조회한다.
         // 제품별로 조회하면 완성품 수만큼 쿼리가 나간다.
@@ -305,5 +314,36 @@ public class InventoryService {
     private Inventory getInventoryOrThrow(Long warehouseId, Long itemId) {
         return inventoryRepository.findByWarehouseIdAndItemId(warehouseId, itemId)
                 .orElseThrow(() -> new ImsException(ErrorCode.INVENTORY_NOT_FOUND));
+    }
+
+    /**
+     * 부족 분석 대상 완성품을 모은다.
+     * 창고 소유자의 완성품과 이 창고에 재고가 있는 완성품의 합집합이다.
+     */
+    private List<Item> collectAnalysisTargets(Warehouse warehouse, Long warehouseId) {
+        Map<Long, Item> targets = new LinkedHashMap<>();
+
+        itemRepository.findAllByOwnerIdAndType(warehouse.getOwner().getId(), ItemType.PRODUCT)
+                .forEach(item -> targets.put(item.getId(), item));
+
+        inventoryRepository.findAllByWarehouseId(warehouseId).stream()
+                .map(Inventory::getItem)
+                .filter(item -> item.getType() == ItemType.PRODUCT)
+                .forEach(item -> targets.putIfAbsent(item.getId(), item));
+
+        return List.copyOf(targets.values());
+    }
+
+    /**
+     * 창고 조회 화면에서 다룰 수 있는 품목인지 판별한다.
+     * 창고 접근 권한은 호출 전에 검증되어 있어야 한다.
+     *
+     * 소유자를 창고 소유자로 고정하면 안 된다. 유통사 창고에 제조사 완성품이
+     * 들어가는 것이 정상 케이스라 창고 소유자와 품목 소유자는 자주 다르다.
+     */
+    private Item resolveWarehouseItem(Long userId, Long warehouseId, Long itemId) {
+        return inventoryRepository.findByWarehouseIdAndItemId(warehouseId, itemId)
+                .map(Inventory::getItem)
+                .orElseGet(() -> domainValidator.getOwnedItem(userId, itemId));
     }
 }

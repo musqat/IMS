@@ -219,7 +219,7 @@ class InventoryServiceTest {
         Inventory frameInventory = Inventory.builder().id(102L).warehouse(warehouse).item(itemFrame).quantity(30).safetyStock(0).build();
 
         given(warehouseShareService.checkViewAccess(owner.getId(), warehouse.getId())).willReturn(warehouse);
-        given(domainValidator.getItemOwnedBy(owner.getId(), itemBike.getId())).willReturn(itemBike);
+        given(domainValidator.getOwnedItem(owner.getId(), itemBike.getId())).willReturn(itemBike);
         given(bomService.getFullBomTree(itemBike.getId(), owner.getId())).willReturn(Map.of(itemTire.getId(), 2L, itemFrame.getId(), 3L));
         given(inventoryRepository.findAllByWarehouseIdAndItemIdIn(eq(warehouse.getId()), any()))
                 .willReturn(List.of(tireInventory, frameInventory));
@@ -237,7 +237,7 @@ class InventoryServiceTest {
     void calcMaxProducible_noStock() {
         // given: 타이어 재고 항목 자체가 DB에 없음
         given(warehouseShareService.checkViewAccess(owner.getId(), warehouse.getId())).willReturn(warehouse);
-        given(domainValidator.getItemOwnedBy(owner.getId(), itemBike.getId())).willReturn(itemBike);
+        given(domainValidator.getOwnedItem(owner.getId(), itemBike.getId())).willReturn(itemBike);
         given(bomService.getFullBomTree(itemBike.getId(), owner.getId())).willReturn(Map.of(itemTire.getId(), 2L));
         given(inventoryRepository.findAllByWarehouseIdAndItemIdIn(eq(warehouse.getId()), any()))
                 .willReturn(List.of()); // 재고 항목 없음
@@ -254,7 +254,7 @@ class InventoryServiceTest {
     @DisplayName("최대 생산 가능 수량 - BOM 없으면 null (제약 없음)")
     void calcMaxProducible_noBom() {
         given(warehouseShareService.checkViewAccess(owner.getId(), warehouse.getId())).willReturn(warehouse);
-        given(domainValidator.getItemOwnedBy(owner.getId(), itemBike.getId())).willReturn(itemBike);
+        given(domainValidator.getOwnedItem(owner.getId(), itemBike.getId())).willReturn(itemBike);
         given(bomService.getFullBomTree(itemBike.getId(), owner.getId())).willReturn(Map.of());
 
         MaxProducibleResponse result = inventoryService.calcMaxProducible(owner.getId(), warehouse.getId(), itemBike.getId());
@@ -420,15 +420,19 @@ class InventoryServiceTest {
     // 소유자의 품목을 찾지 못한다.
 
     @Test
-    @DisplayName("최대 생산 가능 수량 - 공유받은 사용자도 창고 소유자의 품목으로 조회한다")
-    void calcMaxProducible_sharedUser_usesWarehouseOwner() {
+    @DisplayName("최대 생산 가능 수량 - 공유받은 사용자는 창고 재고에서 품목을 해석한다")
+    void calcMaxProducible_sharedUser_resolvesItemFromInventory() {
         // given: 공유받은 사용자(999L)가 owner의 창고를 조회한다
         Long sharedUserId = 999L;
         Inventory tireInventory = Inventory.builder().id(101L).warehouse(warehouse)
                 .item(itemTire).quantity(100).safetyStock(0).build();
 
+        Inventory bikeInventory = Inventory.builder().id(102L).warehouse(warehouse)
+                .item(itemBike).quantity(0).safetyStock(0).build();
+
         given(warehouseShareService.checkViewAccess(sharedUserId, warehouse.getId())).willReturn(warehouse);
-        given(domainValidator.getItemOwnedBy(owner.getId(), itemBike.getId())).willReturn(itemBike);
+        given(inventoryRepository.findByWarehouseIdAndItemId(warehouse.getId(), itemBike.getId()))
+                .willReturn(Optional.of(bikeInventory));
         given(bomService.getFullBomTree(itemBike.getId(), owner.getId()))
                 .willReturn(Map.of(itemTire.getId(), 2L));
         given(inventoryRepository.findAllByWarehouseIdAndItemIdIn(eq(warehouse.getId()), any()))
@@ -438,16 +442,16 @@ class InventoryServiceTest {
         MaxProducibleResponse result =
                 inventoryService.calcMaxProducible(sharedUserId, warehouse.getId(), itemBike.getId());
 
-        // then: 호출자(999L)가 아니라 창고 소유자(1L) 기준으로 조회해야 한다
-        then(domainValidator).should().getItemOwnedBy(owner.getId(), itemBike.getId());
-        then(domainValidator).should(never()).getItemOwnedBy(eq(sharedUserId), any());
+        // then: 호출자(999L) 소유 품목을 찾으면 안 된다. 창고 재고에서 품목을 해석하고
+        //       BOM은 그 품목의 소유자(1L) 기준으로 조회해야 한다
+        then(domainValidator).should(never()).getOwnedItem(eq(sharedUserId), any());
         then(bomService).should().getFullBomTree(itemBike.getId(), owner.getId());
         assertThat(result.maxQuantity()).isEqualTo(50);
     }
 
     @Test
-    @DisplayName("부족 재고 분석 - 공유받은 사용자도 창고 소유자의 완성품을 분석한다")
-    void getShortageAnalysis_sharedUser_usesWarehouseOwner() {
+    @DisplayName("부족 재고 분석 - 공유받은 사용자도 창고 소유자의 완성품을 분석 대상에 넣는다")
+    void getShortageAnalysis_sharedUser_includesWarehouseOwnerProducts() {
         // given
         Long sharedUserId = 999L;
         Inventory tireInv = Inventory.builder().id(201L).warehouse(warehouse)
@@ -466,7 +470,7 @@ class InventoryServiceTest {
         List<ShortageItemResponse> result =
                 inventoryService.getShortageAnalysis(sharedUserId, warehouse.getId());
 
-        // then: 호출자가 아니라 창고 소유자의 완성품이 분석 대상이다
+        // then: 호출자 기준으로 조회하면 남의 창고를 보면서 자기 완성품을 분석하게 된다
         then(itemRepository).should().findAllByOwnerIdAndType(owner.getId(), ItemType.PRODUCT);
         then(itemRepository).should(never()).findAllByOwnerIdAndType(eq(sharedUserId), any());
         assertThat(result).hasSize(1);
@@ -549,5 +553,75 @@ class InventoryServiceTest {
         // 권한 검증에서 막혀 재고를 건드리지 않아야 한다
         then(inventoryRepository).should(never()).findByWarehouseIdAndItemId(any(), any());
         then(inventoryHistoryWriter).shouldHaveNoInteractions();
+    }
+
+    // ===================== 창고 소유자 ≠ 품목 소유자 =====================
+    // 유통사 창고에 제조사 완성품이 들어가는 것은 정상 케이스다.
+    // 창고 소유자 기준으로만 품목을 찾으면 이 창고의 재고를 아예 다룰 수 없다.
+
+    @Test
+    @DisplayName("최대 생산량 - 창고 소유자와 품목 소유자가 달라도 창고 재고의 품목이면 계산한다")
+    void calcMaxProducible_itemOwnedByOtherUser_resolvedFromInventory() {
+        // given: 창고는 999L 소유, 그 안의 완성품은 owner(1L) 소유
+        User warehouseOwner = User.builder().id(999L).email("dist@test.com").password("pw")
+                .companyName("유통사").companyCode("DS001").build();
+        Warehouse distWarehouse = Warehouse.builder().id(77L).owner(warehouseOwner).name("유통창고").build();
+
+        Inventory bikeInv = Inventory.builder().id(301L).warehouse(distWarehouse)
+                .item(itemBike).quantity(5).safetyStock(0).build();
+        Inventory tireInv = Inventory.builder().id(302L).warehouse(distWarehouse)
+                .item(itemTire).quantity(100).safetyStock(0).build();
+
+        given(warehouseShareService.checkViewAccess(owner.getId(), distWarehouse.getId()))
+                .willReturn(distWarehouse);
+        given(inventoryRepository.findByWarehouseIdAndItemId(distWarehouse.getId(), itemBike.getId()))
+                .willReturn(Optional.of(bikeInv));
+        given(bomService.getFullBomTree(itemBike.getId(), owner.getId()))
+                .willReturn(Map.of(itemTire.getId(), 2L));
+        given(inventoryRepository.findAllByWarehouseIdAndItemIdIn(eq(distWarehouse.getId()), any()))
+                .willReturn(List.of(tireInv));
+
+        // when
+        MaxProducibleResponse result =
+                inventoryService.calcMaxProducible(owner.getId(), distWarehouse.getId(), itemBike.getId());
+
+        // then: BOM은 창고 소유자(999L)가 아니라 품목 소유자(1L) 기준으로 조회해야 한다
+        then(bomService).should().getFullBomTree(itemBike.getId(), owner.getId());
+        then(bomService).should(never()).getFullBomTree(any(), eq(warehouseOwner.getId()));
+        assertThat(result.maxQuantity()).isEqualTo(50);
+    }
+
+    @Test
+    @DisplayName("부족 재고 분석 - 창고 소유자 품목이 없어도 창고에 있는 완성품을 분석한다")
+    void getShortageAnalysis_productsStockedByOtherUser_areAnalyzed() {
+        // given: 창고 소유자(999L)는 완성품이 없고, 창고에는 owner(1L)의 완성품이 들어 있다
+        User warehouseOwner = User.builder().id(999L).email("dist@test.com").password("pw")
+                .companyName("유통사").companyCode("DS001").build();
+        Warehouse distWarehouse = Warehouse.builder().id(77L).owner(warehouseOwner).name("유통창고").build();
+
+        Inventory bikeInv = Inventory.builder().id(301L).warehouse(distWarehouse)
+                .item(itemBike).quantity(5).safetyStock(0).build();
+        Inventory tireInv = Inventory.builder().id(302L).warehouse(distWarehouse)
+                .item(itemTire).quantity(1).safetyStock(0).build();
+
+        given(warehouseShareService.checkViewAccess(owner.getId(), distWarehouse.getId()))
+                .willReturn(distWarehouse);
+        given(itemRepository.findAllByOwnerIdAndType(warehouseOwner.getId(), ItemType.PRODUCT))
+                .willReturn(List.of());
+        given(inventoryRepository.findAllByWarehouseId(distWarehouse.getId()))
+                .willReturn(List.of(bikeInv, tireInv));
+        given(bomService.getFullBomTrees(List.of(itemBike.getId()), owner.getId()))
+                .willReturn(Map.of(itemBike.getId(), Map.of(itemTire.getId(), 2L)));
+        given(inventoryRepository.findAllByWarehouseIdAndItemIdIn(eq(distWarehouse.getId()), any()))
+                .willReturn(List.of(tireInv));
+        given(itemRepository.findAllById(any())).willReturn(List.of(itemTire));
+
+        // when
+        List<ShortageItemResponse> result =
+                inventoryService.getShortageAnalysis(owner.getId(), distWarehouse.getId());
+
+        // then: 창고 소유자에게 완성품이 없어도 조용히 0건이 되면 안 된다
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).itemId()).isEqualTo(itemBike.getId());
     }
 }

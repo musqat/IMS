@@ -23,6 +23,7 @@ public class WarehouseService {
     private final WarehouseRepository warehouseRepository;
     private final UserRepository userRepository;
     private final DomainValidator domainValidator;
+    private final WarehouseShareService warehouseShareService;
 
     /**
      * 창고 생성
@@ -55,10 +56,11 @@ public class WarehouseService {
 
     /**
      * 창고 단건 조회
-     * - 소유자 검증 후 반환
+     * - 조회 권한 검증 후 반환 (소유자 또는 공유받은 사용자)
+     * - 소유자 전용으로 두면 공유 창고 상세 화면이 창고 이름조차 받지 못한다
      */
     public WarehouseResponse getWarehouse(Long userId, Long warehouseId) {
-        Warehouse warehouse = domainValidator.getOwnedWarehouse(userId, warehouseId);
+        Warehouse warehouse = warehouseShareService.checkViewAccess(userId, warehouseId);
         return WarehouseResponse.from(warehouse);
     }
 
