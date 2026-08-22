@@ -27,6 +27,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
@@ -148,7 +149,7 @@ class ProductionServiceTest {
         Settlement settlement = Settlement.builder()
                 .id(1L).productionRecord(record).result(SettlementResult.SUCCESS).build();
 
-        given(domainValidator.getOwnedWarehouse(owner.getId(), warehouse.getId())).willReturn(warehouse);
+        given(warehouseShareService.checkViewAccess(owner.getId(), warehouse.getId())).willReturn(warehouse);
         given(productionRepository.findAllByWarehouseId(eq(warehouse.getId()), any()))
                 .willReturn(new PageImpl<>(List.of(record)));
         // N+1 수정: findAllByProductionRecordIdIn 으로 일괄 조회
@@ -169,7 +170,7 @@ class ProductionServiceTest {
         ProductionRecord record = ProductionRecord.builder()
                 .id(1L).warehouse(warehouse).item(itemBike).quantity(10).status(ProductionStatus.PENDING).build();
 
-        given(domainValidator.getOwnedWarehouse(owner.getId(), warehouse.getId())).willReturn(warehouse);
+        given(warehouseShareService.checkViewAccess(owner.getId(), warehouse.getId())).willReturn(warehouse);
         given(productionRepository.findAllByWarehouseId(eq(warehouse.getId()), any()))
                 .willReturn(new PageImpl<>(List.of(record)));
         given(settlementRepository.findAllByProductionRecordIdIn(List.of(record.getId())))
@@ -401,5 +402,28 @@ class ProductionServiceTest {
         assertThatThrownBy(() -> productionService.updateSettlement(owner.getId(), warehouse.getId(), 1L, request))
                 .isInstanceOf(ImsException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.SETTLEMENT_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("생산 기록 목록 - 공유받은 사용자도 조회할 수 있다")
+    void getRecords_sharedUser_canRead() {
+        // given: 999L은 소유자가 아니지만 창고를 공유받았다
+        Long sharedUserId = 999L;
+        ProductionRecord record = ProductionRecord.builder()
+                .id(1L).warehouse(warehouse).item(itemBike).quantity(10).status(ProductionStatus.PENDING).build();
+
+        given(warehouseShareService.checkViewAccess(sharedUserId, warehouse.getId())).willReturn(warehouse);
+        given(productionRepository.findAllByWarehouseId(eq(warehouse.getId()), any(Pageable.class)))
+                .willReturn(new PageImpl<>(List.of(record)));
+        given(settlementRepository.findAllByProductionRecordIdIn(List.of(1L))).willReturn(List.of());
+
+        // when
+        Page<ProductionResponse> result =
+                productionService.getRecords(sharedUserId, warehouse.getId(), PageRequest.of(0, 10));
+
+        // then: 소유자 전용 검증을 쓰면 공유받은 사용자가 생산 기록을 아예 못 본다
+        then(warehouseShareService).should().checkViewAccess(sharedUserId, warehouse.getId());
+        then(domainValidator).should(never()).getOwnedWarehouse(any(), any());
+        assertThat(result.getContent()).hasSize(1);
     }
 }

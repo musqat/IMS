@@ -8,7 +8,10 @@ import com.ims.user.repository.UserRepository;
 import com.ims.warehouse.dto.request.WarehouseCreateRequest;
 import com.ims.warehouse.dto.response.WarehouseResponse;
 import com.ims.warehouse.entity.Warehouse;
+import com.ims.inventory.repository.InventoryRepository;
+import com.ims.production.repository.ProductionRepository;
 import com.ims.warehouse.repository.WarehouseRepository;
+import com.ims.warehouse.repository.WarehouseShareRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +27,9 @@ public class WarehouseService {
     private final UserRepository userRepository;
     private final DomainValidator domainValidator;
     private final WarehouseShareService warehouseShareService;
+    private final WarehouseShareRepository warehouseShareRepository;
+    private final InventoryRepository inventoryRepository;
+    private final ProductionRepository productionRepository;
 
     /**
      * 창고 생성
@@ -67,10 +73,21 @@ public class WarehouseService {
     /**
      * 창고 삭제
      * - 소유자 검증 후 삭제
+     * - 재고와 생산 기록은 분석의 원본이라 창고와 함께 지우지 않는다
+     * - 공유 설정은 창고에 종속된 정보라 함께 지운다
      */
     @Transactional
     public void deleteWarehouse(Long userId, Long warehouseId) {
         Warehouse warehouse = domainValidator.getOwnedWarehouse(userId, warehouseId);
+
+        if (inventoryRepository.existsByWarehouseId(warehouseId)) {
+            throw new ImsException(ErrorCode.WAREHOUSE_HAS_INVENTORY);
+        }
+        if (productionRepository.existsByWarehouseId(warehouseId)) {
+            throw new ImsException(ErrorCode.WAREHOUSE_HAS_PRODUCTION);
+        }
+
+        warehouseShareRepository.deleteAllByWarehouseId(warehouseId);
         warehouseRepository.delete(warehouse);
     }
 }

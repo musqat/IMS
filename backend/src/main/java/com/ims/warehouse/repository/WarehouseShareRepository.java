@@ -26,4 +26,11 @@ public interface WarehouseShareRepository extends JpaRepository<WarehouseShare, 
      */
     @Modifying
     void deleteByWarehouseOwnerIdAndSharedWithId(Long warehouseOwnerId, Long sharedWithId);
+
+    /**
+     * 창고의 공유 설정 일괄 삭제
+     * - 창고가 사라지면 그 창고의 공유도 의미가 없다
+     */
+    @Modifying
+    void deleteAllByWarehouseId(Long warehouseId);
 }
