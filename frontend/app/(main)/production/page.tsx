@@ -1,5 +1,6 @@
 'use client';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useProductionCounts, useProductionsByStatus } from '@/hooks/queries/useProductions';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
@@ -17,9 +18,17 @@ const STATUSES: { value: ProductionStatus; label: string }[] = [
   { value: 'CANCELLED', label: '취소됨' },
 ];
 
-export default function ProductionPage() {
+/** ?status=SETTLED 로 들어오면 해당 탭으로 시작한다. 대시보드 KPI에서 넘어오는 경로 */
+function initialStatus(param: string | null): ProductionStatus {
+  return STATUSES.some((s) => s.value === param) ? (param as ProductionStatus) : 'PENDING';
+}
+
+function ProductionContent() {
+  const searchParams = useSearchParams();
   const [createOpen, setCreateOpen] = useState(false);
-  const [activeStatus, setActiveStatus] = useState<ProductionStatus>('PENDING');
+  const [activeStatus, setActiveStatus] = useState<ProductionStatus>(
+    () => initialStatus(searchParams.get('status')),
+  );
   const [page, setPage] = useState(0);
 
   const { data: counts } = useProductionCounts();
@@ -122,5 +131,17 @@ export default function ProductionPage() {
 
       <CreateProductionDialog open={createOpen} onClose={() => setCreateOpen(false)} />
     </div>
+  );
+}
+
+/**
+ * useSearchParams는 클라이언트에서만 값이 정해져 Suspense 경계가 필요하다.
+ * 없으면 prerender 단계에서 빌드가 실패한다
+ */
+export default function ProductionPage() {
+  return (
+    <Suspense fallback={<p className="text-stone-400 text-sm py-10 text-center">불러오는 중...</p>}>
+      <ProductionContent />
+    </Suspense>
   );
 }

@@ -1,5 +1,6 @@
 'use client';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useProductionsByStatus } from '@/hooks/queries/useProductions';
 import { AnomalyDetailModal } from '@/components/settlement/AnomalyDetailModal';
 import { CheckCircle2, AlertTriangle, Search, XCircle } from 'lucide-react';
@@ -15,11 +16,19 @@ const FILTERS: { value: FilterType; label: string }[] = [
   { value: 'FAILED', label: '오류' },
 ];
 
-export default function SettlementsPage() {
+/** ?result=ANOMALY 로 들어오면 해당 필터로 시작한다. 대시보드 KPI에서 넘어오는 경로 */
+function initialFilter(param: string | null): FilterType {
+  return FILTERS.some((f) => f.value === param) ? (param as FilterType) : 'ALL';
+}
+
+function SettlementsContent() {
+  const searchParams = useSearchParams();
   const { data: pageData, isLoading } = useProductionsByStatus('SETTLED', 0, 500);
   const records = pageData?.content ?? [];
   const [selected, setSelected] = useState<{ settlement: SettlementResponse; itemName: string } | null>(null);
-  const [activeFilter, setActiveFilter] = useState<FilterType>('ALL');
+  const [activeFilter, setActiveFilter] = useState<FilterType>(
+    () => initialFilter(searchParams.get('result')),
+  );
 
   const withSettlement = records.filter((r) => r.settlement);
 
@@ -191,5 +200,17 @@ export default function SettlementsPage() {
         />
       )}
     </div>
+  );
+}
+
+/**
+ * useSearchParams는 클라이언트에서만 값이 정해져 Suspense 경계가 필요하다.
+ * 없으면 prerender 단계에서 빌드가 실패한다
+ */
+export default function SettlementsPage() {
+  return (
+    <Suspense fallback={<p className="text-stone-400 text-sm py-10 text-center">불러오는 중...</p>}>
+      <SettlementsContent />
+    </Suspense>
   );
 }
