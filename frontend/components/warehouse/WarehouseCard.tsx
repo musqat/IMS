@@ -41,7 +41,8 @@ export function WarehouseCard({ warehouse, isOwner, permission, onShare }: Props
               <DropdownMenuItem
                 className="text-rose-600"
                 onClick={() => {
-                  if (confirm(`"${warehouse.name}" 창고를 삭제하시겠습니까?\n연결된 재고와 공유 설정이 모두 삭제됩니다.`)) {
+                  // 재고·생산 기록은 함께 지우지 않고 삭제를 거부한다
+                  if (confirm(`"${warehouse.name}" 창고를 삭제하시겠습니까?\n공유 설정도 함께 삭제됩니다.\n재고나 생산 기록이 남아 있으면 삭제할 수 없습니다.`)) {
                     deleteWarehouse(warehouse.id);
                   }
                 }}
