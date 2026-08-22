@@ -7,6 +7,7 @@ import { ShortageBarChart } from '@/components/analytics/ShortageBarChart';
 import { DateRangeFilter } from '@/components/analytics/DateRangeFilter';
 import { ProductionOutboundSection } from '@/components/analytics/ProductionOutboundSection';
 import { InventoryTrendSection } from '@/components/analytics/InventoryTrendSection';
+import { StockDepletionSection } from '@/components/analytics/StockDepletionSection';
 import { toLocalDateString, daysAgo } from '@/lib/utils/date';
 
 export default function AnalyticsPage() {
@@ -88,6 +89,9 @@ export default function AnalyticsPage() {
 
         <InventoryTrendSection />
       </div>
+
+      {/* 재고 소진 예측 — 언제 보충·생산해야 하는지 */}
+      <StockDepletionSection startDate={startDate} endDate={endDate} />
     </div>
   );
 }

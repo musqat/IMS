@@ -1,5 +1,5 @@
 import { apiClient, unwrapAs } from './client';
-import type { InventoryResponse, InventoryHistoryResponse, InventoryExportRow, InventoryHistoryType, MaxProducibleResponse, ShortageItemResponse, Page } from '../types';
+import type { InventoryResponse, InventoryHistoryResponse, InventoryExportRow, InventoryHistoryType, MaxProducibleResponse, ShortageItemResponse, StockDepletionResponse, Page } from '../types';
 
 export const inventoryApi = {
   getList: (warehouseId: number, keyword?: string, page = 0, size = 20): Promise<Page<InventoryResponse>> =>
@@ -40,6 +40,10 @@ export const inventoryApi = {
     apiClient.get(`/warehouses/${warehouseId}/inventories/histories`, {
       params: { types, from, to },
     }).then(unwrapAs<InventoryExportRow[]>()),
+
+  getDepletion: (warehouseId: number, from: string, to: string): Promise<StockDepletionResponse> =>
+    apiClient.get(`/warehouses/${warehouseId}/inventories/depletion`, { params: { from, to } })
+      .then(unwrapAs<StockDepletionResponse>()),
 
   getShortageAnalysis: (warehouseId: number): Promise<ShortageItemResponse[]> =>
     apiClient.get(`/warehouses/${warehouseId}/inventories/shortage-analysis`)

@@ -9,10 +9,12 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.support.EncodedResource;
 import org.springframework.jdbc.datasource.init.ScriptUtils;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 
 @Slf4j
@@ -42,7 +44,8 @@ public class DataInitializer implements ApplicationRunner {
         userService.signUp(new RegisterRequest("e@ims.dev", "Test1234!", "이스마트코리아(주)"));
 
         try (Connection conn = dataSource.getConnection()) {
-            ScriptUtils.executeSqlScript(conn, new ClassPathResource("seed.sql"));
+            ScriptUtils.executeSqlScript(conn,
+                    new EncodedResource(new ClassPathResource("seed.sql"), StandardCharsets.UTF_8));
         }
 
         log.info("[DataInitializer] Seed data applied successfully.");
