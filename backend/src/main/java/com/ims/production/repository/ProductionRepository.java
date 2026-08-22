@@ -37,4 +37,7 @@ public interface ProductionRepository extends JpaRepository<ProductionRecord, Lo
     /** 강제결산용 — LAZY 연관관계 선제적 로딩 (REQUIRES_NEW 트랜잭션 진입 전 초기화) */
     @EntityGraph(attributePaths = {"warehouse", "item", "item.owner"})
     Optional<ProductionRecord> findWithDetailsById(Long id);
+
+    /** 창고에 생산 기록이 하나라도 있는지 — 창고 삭제 가능 여부 판단용 */
+    boolean existsByWarehouseId(Long warehouseId);
 }

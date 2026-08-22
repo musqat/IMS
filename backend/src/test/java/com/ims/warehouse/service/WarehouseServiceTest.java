@@ -8,7 +8,10 @@ import com.ims.user.repository.UserRepository;
 import com.ims.warehouse.dto.request.WarehouseCreateRequest;
 import com.ims.warehouse.dto.response.WarehouseResponse;
 import com.ims.warehouse.entity.Warehouse;
+import com.ims.inventory.repository.InventoryRepository;
+import com.ims.production.repository.ProductionRepository;
 import com.ims.warehouse.repository.WarehouseRepository;
+import com.ims.warehouse.repository.WarehouseShareRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -40,6 +43,15 @@ class WarehouseServiceTest {
 
     @Mock
     private WarehouseShareService warehouseShareService;
+
+    @Mock
+    private WarehouseShareRepository warehouseShareRepository;
+
+    @Mock
+    private InventoryRepository inventoryRepository;
+
+    @Mock
+    private ProductionRepository productionRepository;
 
     private User user;
     private Warehouse warehouse;
@@ -152,5 +164,49 @@ class WarehouseServiceTest {
         then(warehouseShareService).should().checkViewAccess(sharedUserId, warehouse.getId());
         then(domainValidator).should(never()).getOwnedWarehouse(any(), any());
         assertThat(result.id()).isEqualTo(warehouse.getId());
+    }
+
+    // ===================== 창고 삭제 참조 검증 =====================
+    // 재고·생산 기록이 남은 창고를 지우면 FK 위반이 나고, 그 예외가
+    // DUPLICATE_RESOURCE("이미 존재하는 리소스입니다")로 매핑돼 엉뚱한 메시지가 나갔다.
+    // 삭제 전에 참조를 직접 확인해 무엇이 막는지 알려준다.
+
+    @Test
+    @DisplayName("창고 삭제 실패 - 재고가 남아 있음")
+    void deleteWarehouse_hasInventory() {
+        given(domainValidator.getOwnedWarehouse(1L, 1L)).willReturn(warehouse);
+        given(inventoryRepository.existsByWarehouseId(1L)).willReturn(true);
+
+        assertThatThrownBy(() -> warehouseService.deleteWarehouse(1L, 1L))
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WAREHOUSE_HAS_INVENTORY);
+        then(warehouseRepository).should(never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("창고 삭제 실패 - 생산 기록이 있음")
+    void deleteWarehouse_hasProduction() {
+        given(domainValidator.getOwnedWarehouse(1L, 1L)).willReturn(warehouse);
+        given(inventoryRepository.existsByWarehouseId(1L)).willReturn(false);
+        given(productionRepository.existsByWarehouseId(1L)).willReturn(true);
+
+        assertThatThrownBy(() -> warehouseService.deleteWarehouse(1L, 1L))
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WAREHOUSE_HAS_PRODUCTION);
+        then(warehouseRepository).should(never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("창고 삭제 - 공유 설정은 함께 삭제한다")
+    void deleteWarehouse_removesShares() {
+        // 창고가 사라지면 그 창고의 공유도 의미가 없다. 재고·생산 기록과 달리 남길 이유가 없다
+        given(domainValidator.getOwnedWarehouse(1L, 1L)).willReturn(warehouse);
+        given(inventoryRepository.existsByWarehouseId(1L)).willReturn(false);
+        given(productionRepository.existsByWarehouseId(1L)).willReturn(false);
+
+        warehouseService.deleteWarehouse(1L, 1L);
+
+        then(warehouseShareRepository).should().deleteAllByWarehouseId(1L);
+        then(warehouseRepository).should().delete(warehouse);
     }
 }

@@ -58,6 +58,9 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long>, Jpa
             @Param("warehouseId") Long warehouseId,
             @Param("itemId") Long itemId);
 
+    /** 창고에 재고 항목이 하나라도 있는지 — 창고 삭제 가능 여부 판단용 */
+    boolean existsByWarehouseId(Long warehouseId);
+
     /** 창고 내 아이템 확인 */
     boolean existsByWarehouseIdAndItemId(Long warehouseId, Long itemId);
 }

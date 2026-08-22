@@ -38,6 +38,8 @@ public enum ErrorCode {
     WAREHOUSE_NOT_OWNED(HttpStatus.FORBIDDEN, "해당 창고를 소유하고 있지 않습니다."),
     WAREHOUSE_SHARE_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 창고 공유입니다."),
     WAREHOUSE_ACCESS_DENIED(HttpStatus.FORBIDDEN, "해당 창고에 대한 접근 권한이 없습니다."),
+    WAREHOUSE_HAS_INVENTORY(HttpStatus.CONFLICT, "재고가 남아 있어 창고를 삭제할 수 없습니다."),
+    WAREHOUSE_HAS_PRODUCTION(HttpStatus.CONFLICT, "생산 기록이 있어 창고를 삭제할 수 없습니다."),
 
     // item
     ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 품목입니다."),

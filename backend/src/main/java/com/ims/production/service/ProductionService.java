@@ -75,11 +75,13 @@ public class ProductionService {
 
     /**
      * 생산 기록 목록 조회
-     * - 창고 소유자 검증
+     * - 조회 권한 검증 (소유자 / VIEW / FULL)
      * - Settlement를 한 번에 조회하여 응답 조합
+     * - 생산 기록 생성·수정은 소유자 전용이지만 조회는 공유받은 쪽도 가능해야 한다.
+     *   본사가 하청 창고의 생산 현황을 확인하는 것이 창고 공유의 목적이다
      */
     public Page<ProductionResponse> getRecords(Long userId, Long warehouseId, Pageable pageable) {
-        domainValidator.getOwnedWarehouse(userId, warehouseId);
+        warehouseShareService.checkViewAccess(userId, warehouseId);
         Page<ProductionRecord> page = productionRepository.findAllByWarehouseId(warehouseId, pageable);
 
         List<Long> recordIds = page.getContent().stream().map(ProductionRecord::getId).toList();
