@@ -13,6 +13,7 @@ import com.ims.inventory.dto.response.InventoryHistoryResponse;
 import com.ims.inventory.dto.response.InventoryResponse;
 import com.ims.inventory.dto.response.MaxProducibleResponse;
 import com.ims.inventory.dto.response.ShortageItemResponse;
+import com.ims.inventory.dto.response.StockDepletionResponse;
 import com.ims.inventory.service.InventoryService;
 import com.ims.inventory.entity.InventoryHistoryType;
 import jakarta.validation.Valid;
@@ -138,5 +139,24 @@ public class InventoryController {
             @PathVariable Long warehouseId,
             @AuthenticationPrincipal Long userId) {
         return ResponseEntity.ok(ApiResponse.success(inventoryService.getShortageAnalysis(userId, warehouseId)));
+    }
+
+    /** 재고 소진 예측 (기간 내 출고량 기준 월평균 · 잔여 개월) */
+    @GetMapping("/depletion")
+    public ResponseEntity<ApiResponse<StockDepletionResponse>> getDepletionAnalysis(
+            @PathVariable Long warehouseId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @AuthenticationPrincipal Long userId) {
+
+        if (from.isAfter(to)) {
+            throw new ImsException(ErrorCode.INVALID_DATE_RANGE);
+        }
+        if (from.plusYears(1).isBefore(to)) {
+            throw new ImsException(ErrorCode.DATE_RANGE_TOO_LARGE);
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(
+                inventoryService.getDepletionAnalysis(userId, warehouseId, from, to)));
     }
 }

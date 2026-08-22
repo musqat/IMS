@@ -14,11 +14,14 @@ import com.ims.inventory.dto.response.InventoryHistoryResponse;
 import com.ims.inventory.dto.response.InventoryResponse;
 import com.ims.inventory.dto.response.MaxProducibleResponse;
 import com.ims.inventory.entity.Inventory;
+import com.ims.inventory.entity.InventoryHistory;
 import com.ims.inventory.entity.InventoryHistoryType;
 import com.ims.inventory.repository.InventoryHistoryRepository;
 import com.ims.inventory.repository.InventoryRepository;
 import com.ims.inventory.dto.response.PartShortageDto;
 import com.ims.inventory.dto.response.ShortageItemResponse;
+import com.ims.inventory.dto.response.StockDepletionResponse;
+import com.ims.inventory.dto.response.StockDepletionRow;
 import com.ims.item.entity.Item;
 import com.ims.item.entity.ItemType;
 import com.ims.item.repository.ItemRepository;
@@ -33,6 +36,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -308,6 +312,54 @@ public class InventoryService {
                 .stream().map(InventoryExportRow::from).toList();
     }
 
+    /**
+     * 재고 소진 예측
+     * - 기간 내 나간 양으로 월평균을 내고, 현재 재고가 몇 달치인지 계산한다
+     * - 소진량 = OUT + PRODUCTION_DEDUCTION.
+     *   물류 창고는 OUT만 나가지만 조립 창고는 PRODUCTION_DEDUCTION이 주 소진 경로다
+     * - 쿼리 2회로 고정 (재고 목록 / 기간 내 이력). 품목 수와 무관하다
+     */
+    public StockDepletionResponse getDepletionAnalysis(
+            Long userId, Long warehouseId, LocalDate from, LocalDate to) {
+
+        // 1. 권한 + 창고 이름
+        Warehouse warehouse = warehouseShareService.checkViewAccess(userId, warehouseId);
+
+        // 2. 현재 재고 목록 (기준이 되는 목록)
+        List<Inventory> inventories = inventoryRepository.findAllByWarehouseId(warehouseId);
+
+        // 3. 기간 내 나간 이력
+        List<InventoryHistory> histories = inventoryHistoryRepository
+                .findAllByInventory_WarehouseIdAndTypeInAndCreatedAtBetween(
+                        warehouseId,
+                        List.of(InventoryHistoryType.OUT, InventoryHistoryType.PRODUCTION_DEDUCTION),
+                        from.atStartOfDay(),
+                        to.plusDays(1).atStartOfDay());
+
+        // 4. 품목별 합산 — Math.abs 필수
+        Map<Long, Integer> outByItem = new HashMap<>();
+        for (InventoryHistory h : histories) {
+            outByItem.merge(h.getInventory().getItem().getId(), Math.abs(h.getDelta()), Integer::sum);
+        }
+
+        // 5. 기간 개월수
+        long days = ChronoUnit.DAYS.between(from, to.plusDays(1));
+        double months = Math.max(days / 30.0, 1.0);
+
+        // 6. 재고 목록 기준으로 행 생성
+        List<StockDepletionRow> rows = inventories.stream()
+                .map(inv -> StockDepletionRow.of(
+                        inv.getItem().getId(),
+                        inv.getItem().getItemCode(),
+                        inv.getItem().getName(),
+                        inv.getQuantity(),
+                        inv.getSafetyStock(),
+                        outByItem.getOrDefault(inv.getItem().getId(), 0),
+                        months))
+                .toList();
+
+        return StockDepletionResponse.of(warehouseId, warehouse.getName(), from, to, months, rows);
+    }
     //======================== 헬퍼 메소드 ===========================//
 
     /** 창고 + 품목으로 재고 조회, 없으면 예외 (조회 전용 — 락 없음) */

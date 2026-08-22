@@ -12,6 +12,8 @@ import com.ims.inventory.dto.request.SafetyStockUpdateRequest;
 import com.ims.inventory.dto.response.InventoryResponse;
 import com.ims.inventory.dto.response.MaxProducibleResponse;
 import com.ims.inventory.dto.response.ShortageItemResponse;
+import com.ims.inventory.dto.response.StockDepletionResponse;
+import com.ims.inventory.dto.response.StockDepletionRow;
 import com.ims.inventory.entity.InventoryHistory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -36,6 +38,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -49,13 +52,20 @@ class InventoryServiceTest {
     @InjectMocks
     private InventoryService inventoryService;
 
-    @Mock private InventoryRepository inventoryRepository;
-    @Mock private InventoryHistoryRepository inventoryHistoryRepository;
-    @Mock private DomainValidator domainValidator;
-    @Mock private InventoryHistoryWriter inventoryHistoryWriter;
-    @Mock private WarehouseShareService warehouseShareService;
-    @Mock private BomService bomService;
-    @Mock private ItemRepository itemRepository;
+    @Mock
+    private InventoryRepository inventoryRepository;
+    @Mock
+    private InventoryHistoryRepository inventoryHistoryRepository;
+    @Mock
+    private DomainValidator domainValidator;
+    @Mock
+    private InventoryHistoryWriter inventoryHistoryWriter;
+    @Mock
+    private WarehouseShareService warehouseShareService;
+    @Mock
+    private BomService bomService;
+    @Mock
+    private ItemRepository itemRepository;
 
     private User owner;
     private Warehouse warehouse;
@@ -623,5 +633,137 @@ class InventoryServiceTest {
         // then: 창고 소유자에게 완성품이 없어도 조용히 0건이 되면 안 된다
         assertThat(result).hasSize(1);
         assertThat(result.get(0).itemId()).isEqualTo(itemBike.getId());
+    }
+
+    // ===================== 재고 소진 예측 =====================
+    // 기간 내 나간 양으로 월평균을 내고 현재 재고가 몇 달치인지 계산한다.
+    // 소진량은 OUT + PRODUCTION_DEDUCTION 이다. 조립 창고는 후자가 주 경로다.
+
+    @Test
+    @DisplayName("소진 예측 - 월평균 출고량과 잔여 개월을 계산한다")
+    void getDepletionAnalysis_calculatesMonthlyAverage() {
+        // given: 90일(3개월) 동안 OUT 100 + OUT 50 + 생산차감 30 = 180 소진, 현재 재고 300
+        LocalDate from = LocalDate.of(2026, 5, 1);
+        LocalDate to = from.plusDays(89); // 90일 → months = 3.0
+
+        Inventory bikeInventory = Inventory.builder().id(100L).warehouse(warehouse)
+                .item(itemBike).quantity(300).safetyStock(50).build();
+
+        given(warehouseShareService.checkViewAccess(owner.getId(), warehouse.getId())).willReturn(warehouse);
+        given(inventoryRepository.findAllByWarehouseId(warehouse.getId()))
+                .willReturn(List.of(bikeInventory));
+        given(inventoryHistoryRepository.findAllByInventory_WarehouseIdAndTypeInAndCreatedAtBetween(
+                eq(warehouse.getId()),
+                eq(List.of(InventoryHistoryType.OUT, InventoryHistoryType.PRODUCTION_DEDUCTION)),
+                any(), any()))
+                .willReturn(List.of(
+                        history(bikeInventory, InventoryHistoryType.OUT, -100),
+                        history(bikeInventory, InventoryHistoryType.OUT, -50),
+                        history(bikeInventory, InventoryHistoryType.PRODUCTION_DEDUCTION, -30)));
+
+        // when
+        StockDepletionResponse result =
+                inventoryService.getDepletionAnalysis(owner.getId(), warehouse.getId(), from, to);
+
+        // then: delta가 음수라 Math.abs로 합산해야 180이 나온다
+        assertThat(result.months()).isEqualTo(3.0);
+        assertThat(result.rows()).hasSize(1);
+
+        StockDepletionRow row = result.rows().get(0);
+        assertThat(row.totalOutbound()).isEqualTo(180);
+        assertThat(row.monthlyAverage()).isEqualTo(60.0);   // 180 / 3
+        assertThat(row.monthsRemaining()).isEqualTo(5.0);   // 300 / 60
+    }
+
+    @Test
+    @DisplayName("소진 예측 - 기간 내 출고가 없으면 잔여 개월은 null이다")
+    void getDepletionAnalysis_noOutbound_monthsRemainingIsNull() {
+        // given: 재고는 있지만 기간 내 나간 이력이 없다
+        LocalDate from = LocalDate.of(2026, 5, 1);
+        LocalDate to = from.plusDays(89);
+
+        Inventory bikeInventory = Inventory.builder().id(100L).warehouse(warehouse)
+                .item(itemBike).quantity(300).safetyStock(50).build();
+
+        given(warehouseShareService.checkViewAccess(owner.getId(), warehouse.getId())).willReturn(warehouse);
+        given(inventoryRepository.findAllByWarehouseId(warehouse.getId()))
+                .willReturn(List.of(bikeInventory));
+        given(inventoryHistoryRepository.findAllByInventory_WarehouseIdAndTypeInAndCreatedAtBetween(
+                eq(warehouse.getId()), any(), any(), any()))
+                .willReturn(List.of());
+
+        // when
+        StockDepletionResponse result =
+                inventoryService.getDepletionAnalysis(owner.getId(), warehouse.getId(), from, to);
+
+        // then: 줄지 않는 재고는 소진 시점을 말할 수 없다. 0.0이면 "곧 소진"으로 읽힌다
+        StockDepletionRow row = result.rows().get(0);
+        assertThat(row.totalOutbound()).isZero();
+        assertThat(row.monthlyAverage()).isEqualTo(0.0);
+        assertThat(row.monthsRemaining()).isNull();
+
+
+    }
+
+    @Test
+    @DisplayName("소진 예측 - 기간 내 출고가 없던 품목도 결과에 포함한다")
+    void getDepletionAnalysis_includesItemsWithoutHistory() {
+        //  given  재고 2건(itemBike, itemTire) / 이력은 itemBike 것만
+        LocalDate from = LocalDate.of(2026, 5, 1);
+        LocalDate to = from.plusDays(89);
+
+        Inventory bikeInv = Inventory.builder().id(100L).warehouse(warehouse)
+                .item(itemBike).quantity(300).safetyStock(50).build();
+        Inventory tireInv = Inventory.builder().id(200L).warehouse(warehouse)
+                .item(itemTire).quantity(300).safetyStock(50).build();
+
+        given(inventoryRepository.findAllByWarehouseId(warehouse.getId()))
+                .willReturn(List.of(bikeInv, tireInv));
+        given(inventoryHistoryRepository.findAllByInventory_WarehouseIdAndTypeInAndCreatedAtBetween(
+                eq(warehouse.getId()), any(), any(), any()
+        )).willReturn(List.of(history(bikeInv, InventoryHistoryType.OUT, -100)));
+
+        given(warehouseShareService.checkViewAccess(owner.getId(), warehouse.getId())).willReturn(warehouse);
+        
+        // when
+        StockDepletionResponse result =
+                inventoryService.getDepletionAnalysis(owner.getId(), warehouse.getId(), from, to);
+
+        //  then   rows 2건. itemTire 는 totalOutbound 0, monthsRemaining null
+        assertThat(result.rows()).hasSize(2);
+
+        StockDepletionRow tire = result.rows().get(1);
+
+        assertThat(tire.itemId()).isEqualTo(itemTire.getId());
+        assertThat(tire.totalOutbound()).isZero();
+        assertThat(tire.monthsRemaining()).isNull();
+    }
+
+    @Test
+    @DisplayName("소진 예측 - 조회 권한을 검증한다")
+    void getDepletionAnalysis_checksViewAccess() {
+        LocalDate from = LocalDate.of(2026, 5, 1);
+        LocalDate to = from.plusDays(89);
+
+
+        willThrow(new ImsException(ErrorCode.WAREHOUSE_ACCESS_DENIED))
+                .given(warehouseShareService).checkViewAccess(999L, warehouse.getId());
+
+        assertThatThrownBy(() -> inventoryService.getDepletionAnalysis(
+                999L, warehouse.getId(), from, to))
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WAREHOUSE_ACCESS_DENIED);
+
+// 권한 실패 시 DB를 건드리면 안 된다
+        then(inventoryRepository).should(never()).findAllByWarehouseId(any());
+    }
+
+    /** 소진 예측 테스트용 이력 생성 (createdAt은 서비스가 조회 조건으로만 쓰므로 생략) */
+    private InventoryHistory history(Inventory inventory, InventoryHistoryType type, int delta) {
+        return InventoryHistory.builder()
+                .inventory(inventory)
+                .type(type)
+                .delta(delta)
+                .build();
     }
 }
