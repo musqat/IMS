@@ -98,7 +98,7 @@ export default function DashboardPage() {
     countsQuery.refetch();
   };
 
-  const totalProductions = counts?.total ?? 0;
+  const totalSettled = counts?.settled ?? 0;
   const totalPending = counts?.pending ?? 0;
   const totalAnomalies = counts?.anomaly ?? 0;
 
@@ -112,17 +112,19 @@ export default function DashboardPage() {
       accent: true,
     },
     {
-      title: '전체 생산 기록',
-      value: totalProductions,
+      // KPI마다 특정 상태를 가리킨다. '전체'로 두면 링크할 탭이 없어
+      // 숫자와 목록이 어긋난다 (전체 = 진행중 + 결산완료 + 취소됨)
+      title: '결산완료',
+      value: totalSettled,
       icon: Activity,
-      href: '/production',
+      href: '/production?status=SETTLED',
       accent: true,
     },
     {
       title: '미결산 잔여',
       value: totalPending,
       icon: Clock,
-      href: '/production',
+      href: '/production?status=PENDING',
       accent: totalPending > 0,
       accentColor: 'text-amber-500',
     },
@@ -130,7 +132,7 @@ export default function DashboardPage() {
       title: '확인필요',
       value: totalAnomalies,
       icon: AlertTriangle,
-      href: '/production',
+      href: '/production/settlements?result=ANOMALY',
       accent: totalAnomalies > 0,
       accentColor: 'text-rose-600',
     },
