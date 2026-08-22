@@ -182,3 +182,24 @@ export interface AccessibleWarehouse {
   /** 소유 창고는 항상 FULL로 취급한다 */
   permission: 'VIEW' | 'FULL';
 }
+
+export interface StockDepletionRow {
+  itemId: number;
+  itemCode: string;
+  itemName: string;
+  currentStock: number;
+  safetyStock: number;
+  totalOutbound: number;
+  monthlyAverage: number;
+  /** 기간 내 소진이 없으면 null. 0으로 오해하면 "곧 소진"으로 읽힌다 */
+  monthsRemaining: number | null;
+}
+
+export interface StockDepletionResponse {
+  warehouseId: number;
+  warehouseName: string;
+  from: string;
+  to: string;
+  months: number;
+  rows: StockDepletionRow[];
+}
