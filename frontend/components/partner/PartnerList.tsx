@@ -7,6 +7,7 @@ import { AliasEditDialog } from './AliasEditDialog';
 import type { PartnershipResponse } from '@/lib/types';
 import { useAuthStore } from '@/store/authStore';
 import { useRemovePartnership } from '@/hooks/mutations/usePartnershipMutations';
+import { useConfirm } from '@/components/common/ConfirmProvider';
 
 interface Props {
   title: string;
@@ -17,6 +18,7 @@ export function PartnerList({ title, partnerships }: Props) {
   const { user } = useAuthStore();
   const [editing, setEditing] = useState<{ id: number; alias: string | null } | null>(null);
   const { mutate: removePartnership, isPending: isRemoving } = useRemovePartnership();
+  const confirm = useConfirm();
 
   return (
     <div>
@@ -55,10 +57,14 @@ export function PartnerList({ title, partnerships }: Props) {
                       variant="ghost"
                       className="text-rose-500 hover:text-rose-600 hover:bg-rose-50"
                       disabled={isRemoving}
-                      onClick={() => {
-                        if (confirm(`${displayName}과의 파트너십을 해제하시겠습니까?`)) {
-                          removePartnership(p.id);
-                        }
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: `${displayName}과의 파트너십을 해제하시겠습니까?`,
+                          description: '공유 중인 창고 접근 권한도 함께 사라집니다.',
+                          confirmLabel: '해제',
+                          destructive: true,
+                        });
+                        if (ok) removePartnership(p.id);
                       }}
                     >
                       <Unlink className="h-4 w-4" />

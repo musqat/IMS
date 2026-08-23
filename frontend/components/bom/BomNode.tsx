@@ -6,6 +6,7 @@ import { useBoms } from '@/hooks/queries/useItems';
 import { useDeleteBom } from '@/hooks/mutations/useBomMutations';
 import { AddChildDialog } from './AddChildDialog';
 import type { BomResponse } from '@/lib/types';
+import { useConfirm } from '@/components/common/ConfirmProvider';
 
 interface Props {
   bom: BomResponse;
@@ -17,6 +18,7 @@ export function BomNode({ bom, depth, maxDepth = 4 }: Props) {
   const [addOpen, setAddOpen] = useState(false);
   const { data: childBoms = [] } = useBoms(bom.childItemId);
   const { mutate: deleteBom } = useDeleteBom(bom.parentItemId);
+  const confirm = useConfirm();
 
   return (
     <div>
@@ -38,10 +40,14 @@ export function BomNode({ bom, depth, maxDepth = 4 }: Props) {
             size="sm"
             variant="ghost"
             className="h-7 w-7 p-0"
-            onClick={() => {
-              if (confirm(`"${bom.childItemName}" BOM을 삭제하시겠습니까?\n하위 구조에 영향을 줄 수 있습니다.`)) {
-                deleteBom(bom.id);
-              }
+            onClick={async () => {
+              const ok = await confirm({
+                title: `"${bom.childItemName}" BOM을 삭제하시겠습니까?`,
+                description: '하위 구조에 영향을 줄 수 있습니다.',
+                confirmLabel: '삭제',
+                destructive: true,
+              });
+              if (ok) deleteBom(bom.id);
             }}
           >
             <Trash2 className="h-3.5 w-3.5 text-rose-500" />

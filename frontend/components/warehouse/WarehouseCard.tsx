@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreVertical, Share2, Trash2, Warehouse, Archive } from 'lucide-react';
 import { useDeleteWarehouse, useDeactivateWarehouse } from '@/hooks/mutations/useWarehouseMutations';
+import { useConfirm } from '@/components/common/ConfirmProvider';
 import type { WarehouseResponse } from '@/lib/types';
 
 interface Props {
@@ -17,6 +18,7 @@ interface Props {
 export function WarehouseCard({ warehouse, isOwner, permission, onShare }: Props) {
   const { mutate: deleteWarehouse } = useDeleteWarehouse();
   const { mutate: deactivateWarehouse } = useDeactivateWarehouse();
+  const confirm = useConfirm();
 
   return (
     <Card className="border-stone-200 hover:border-violet-300 transition-colors">
@@ -41,10 +43,16 @@ export function WarehouseCard({ warehouse, isOwner, permission, onShare }: Props
               </DropdownMenuItem>
               {/* 재고·생산 기록이 있으면 삭제가 막히므로 비활성화를 먼저 보여준다 */}
               <DropdownMenuItem
-                onClick={() => {
-                  if (confirm(`"${warehouse.name}" 창고를 비활성화하시겠습니까?\n목록에서 숨겨지고 입출고가 차단됩니다.\n재고와 이력은 그대로 보존되며 언제든 다시 활성화할 수 있습니다.`)) {
-                    deactivateWarehouse(warehouse.id);
-                  }
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: `"${warehouse.name}" 창고를 비활성화하시겠습니까?`,
+                    description: [
+                      '목록에서 숨겨지고 입출고가 차단됩니다.',
+                      '재고와 이력은 그대로 보존되며 언제든 다시 활성화할 수 있습니다.',
+                    ],
+                    confirmLabel: '비활성화',
+                  });
+                  if (ok) deactivateWarehouse(warehouse.id);
                 }}
               >
                 <Archive className="h-4 w-4 mr-2" />
@@ -52,11 +60,18 @@ export function WarehouseCard({ warehouse, isOwner, permission, onShare }: Props
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-rose-600"
-                onClick={() => {
+                onClick={async () => {
                   // 재고·생산 기록은 함께 지우지 않고 삭제를 거부한다
-                  if (confirm(`"${warehouse.name}" 창고를 삭제하시겠습니까?\n공유 설정도 함께 삭제됩니다.\n재고나 생산 기록이 남아 있으면 삭제할 수 없습니다.`)) {
-                    deleteWarehouse(warehouse.id);
-                  }
+                  const ok = await confirm({
+                    title: `"${warehouse.name}" 창고를 삭제하시겠습니까?`,
+                    description: [
+                      '공유 설정도 함께 삭제됩니다.',
+                      '재고나 생산 기록이 남아 있으면 삭제할 수 없습니다.',
+                    ],
+                    confirmLabel: '삭제',
+                    destructive: true,
+                  });
+                  if (ok) deleteWarehouse(warehouse.id);
                 }}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
