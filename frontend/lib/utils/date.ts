@@ -9,6 +9,16 @@ export function toLocalDateString(d: Date): string {
   return `${d.getFullYear()}-${month}-${day}`;
 }
 
+/**
+ * 만료까지 남은 일수. 이미 지났으면 음수.
+ * 초대 수신함에서 "3일 남음" / "만료됨"을 가르는 데 쓴다.
+ */
+export function daysUntil(expiresAt: string | null): number | null {
+  if (!expiresAt) return null;
+  const diffMs = new Date(expiresAt).getTime() - Date.now();
+  return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+}
+
 /** 오늘로부터 n일 전 (로컬 기준) */
 export function daysAgo(n: number): string {
   const d = new Date();

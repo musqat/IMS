@@ -52,6 +52,32 @@ public class PartnershipController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    /** 수신함에서 초대 수락 — 토큰 대신 partnershipId로 (sub_id가 이미 고정돼 있다) */
+    @PostMapping("/{partnershipId}/accept")
+    public ResponseEntity<ApiResponse<PartnershipResponse>> acceptById(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long partnershipId
+    ) {
+        PartnershipResponse response = partnershipService.acceptById(userId, partnershipId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /** 받은 초대 목록 (하청 기준, PENDING) */
+    @GetMapping("/invites/received")
+    public ResponseEntity<ApiResponse<List<PartnershipResponse>>> getReceivedInvites(
+            @AuthenticationPrincipal Long userId
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(partnershipService.getReceivedInvites(userId)));
+    }
+
+    /** 보낸 초대 목록 (본사 기준, PENDING) */
+    @GetMapping("/invites/sent")
+    public ResponseEntity<ApiResponse<List<PartnershipResponse>>> getSentInvites(
+            @AuthenticationPrincipal Long userId
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(partnershipService.getSentInvites(userId)));
+    }
+
     /** 하청 목록 조회 (본사 기준) */
     @GetMapping("/subs")
     public ResponseEntity<ApiResponse<List<PartnershipResponse>>> getSubList(

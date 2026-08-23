@@ -5,18 +5,41 @@ import { getApiError } from '@/lib/api/client';
 import { toast } from 'sonner';
 
 export function useInvitePartner() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (companyCode: string) => partnershipApi.invite(companyCode),
+    // 보낸 초대 목록에 바로 뜨도록 갱신한다
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: partnershipKeys.sent() });
+    },
   });
 }
 
-export function useAcceptPartner() {
+/** 수신함에서 수락 */
+export function useAcceptInvite() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (token: string) => partnershipApi.accept(token),
+    mutationFn: (partnershipId: number) => partnershipApi.acceptById(partnershipId),
     onSuccess: () => {
+      // 수락하면 받은 초대에서 빠지고 본사 목록에 들어간다
+      qc.invalidateQueries({ queryKey: partnershipKeys.received() });
       qc.invalidateQueries({ queryKey: partnershipKeys.mains() });
+      toast.success('초대를 수락했습니다.');
     },
+    onError: (error) => toast.error(getApiError(error, '초대 수락에 실패했습니다.')),
+  });
+}
+
+/** 본사가 보낸 PENDING 초대 취소 */
+export function useCancelInvite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (partnershipId: number) => partnershipApi.cancelInvite(partnershipId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: partnershipKeys.sent() });
+      toast.success('초대를 취소했습니다.');
+    },
+    onError: (error) => toast.error(getApiError(error, '초대 취소에 실패했습니다.')),
   });
 }
 

@@ -5,8 +5,18 @@ export const partnershipApi = {
   invite: (companyCode: string): Promise<InviteResponse> =>
     apiClient.post('/partnerships/invite', { companyCode }).then(unwrapAs<InviteResponse>()),
 
-  accept: (token: string): Promise<PartnershipResponse> =>
-    apiClient.post('/partnerships/accept', null, { params: { token } }).then(unwrapAs<PartnershipResponse>()),
+  /** 수신함에서 수락 — 토큰 대신 id로 (sub_id가 초대 시점에 이미 고정돼 있다) */
+  acceptById: (partnershipId: number): Promise<PartnershipResponse> =>
+    apiClient.post(`/partnerships/${partnershipId}/accept`).then(unwrapAs<PartnershipResponse>()),
+
+  getReceivedInvites: (): Promise<PartnershipResponse[]> =>
+    apiClient.get('/partnerships/invites/received').then(unwrapAs<PartnershipResponse[]>()),
+
+  getSentInvites: (): Promise<PartnershipResponse[]> =>
+    apiClient.get('/partnerships/invites/sent').then(unwrapAs<PartnershipResponse[]>()),
+
+  cancelInvite: (partnershipId: number): Promise<void> =>
+    apiClient.delete(`/partnerships/${partnershipId}/invite`).then(() => {}),
 
   getSubs: (): Promise<PartnershipResponse[]> =>
     apiClient.get('/partnerships/subs').then(unwrapAs<PartnershipResponse[]>()),
