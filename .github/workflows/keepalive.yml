@@ -1,0 +1,44 @@
+name: keepalive
+
+# Render 무료 플랜은 15분 놀면 인스턴스를 내린다. 다시 깨우는 데 1~3분이 걸려
+# 링크를 처음 여는 사람이 흰 화면을 보게 된다. 주기적으로 깨워둔다.
+#
+# 5분 주기인 이유 — GitHub 예약 실행은 정시 보장이 아니라 부하가 몰리면 밀린다.
+# 10분 주기로 두면 밀렸을 때 간격이 15분을 넘겨 결국 내려간다.
+# 공개 저장소라 Actions 사용량 제한이 없어 짧게 잡아도 비용이 없다.
+#
+# 한계 두 가지
+# - 예약 워크플로는 저장소가 60일간 조용하면 자동으로 꺼진다. 커밋이 끊기면 같이 멈춘다
+# - 창 밖(야간·주말)에는 인스턴스가 내려간다. 그 시간에 처음 들어온 사람은
+#   1~3분을 기다린다. 창을 넓히려면 아래 cron의 시간·요일 범위를 늘리면 된다
+
+on:
+  schedule:
+    # 평일 06:00~19:00 KST. cron은 UTC라 KST 06시가 전날 21시 UTC가 되어 두 줄로 갈린다.
+    # 21~23시 UTC 일~목  =  06:00~08:55 KST 월~금
+    - cron: '*/5 21-23 * * 0-4'
+    # 00~10시 UTC 월~금  =  09:00~19:55 KST 월~금
+    - cron: '*/5 0-10 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 백엔드 깨우기
+        run: |
+          if [ -z "${{ vars.BACKEND_URL }}" ]; then
+            echo "BACKEND_URL 저장소 변수가 없습니다. Settings > Secrets and variables > Actions > Variables에 등록하세요."
+            exit 1
+          fi
+
+          # --retry는 5xx와 연결 실패에 붙는다
+          code=$(curl -sS -o /dev/null -w '%{http_code}' \
+                   --max-time 180 \
+                   --retry 3 --retry-delay 20 --retry-connrefused \
+                   "${{ vars.BACKEND_URL }}/api/v1/health")
+
+          echo "health -> $code"
+
+          # 200이 아니면 실패로 남긴다. 조용히 넘어가면 몇 주째 안 도는 걸 아무도 모른다
+          [ "$code" = "200" ]
