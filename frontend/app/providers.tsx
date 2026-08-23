@@ -1,6 +1,7 @@
 'use client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/sonner';
+import { ConfirmProvider } from '@/components/common/ConfirmProvider';
 import { useState } from 'react';
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -18,7 +19,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   );
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
+      <ConfirmProvider>{children}</ConfirmProvider>
       <Toaster richColors position="top-right" />
     </QueryClientProvider>
   );

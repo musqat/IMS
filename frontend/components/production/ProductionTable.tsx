@@ -12,6 +12,7 @@ import { getApiError } from '@/lib/api/client';
 import { SettlementEditDialog } from './SettlementEditDialog';
 import { ProductionEditDialog } from './ProductionEditDialog';
 import type { ProductionResponse } from '@/lib/types';
+import { useConfirm } from '@/components/common/ConfirmProvider';
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING:   '진행중',
@@ -50,6 +51,7 @@ export function ProductionTable({ records }: Props) {
     qc.invalidateQueries({ queryKey: productionKeys.byWarehouse(warehouseId) });
   };
 
+  const confirm = useConfirm();
   const { mutate: cancel } = useMutation({
     mutationFn: ({ warehouseId, recordId }: { warehouseId: number; recordId: number }) =>
       productionApi.cancel(warehouseId, recordId),
@@ -127,10 +129,17 @@ export function ProductionTable({ records }: Props) {
                             variant="outline"
                             className="text-amber-600 border-amber-200 hover:bg-amber-50 hover:text-amber-700"
                             disabled={isSettling}
-                            onClick={() => {
-                              if (confirm(`"${r.itemName}" 생산 기록을 지금 바로 결산하시겠습니까?`)) {
-                                forceSettle({ warehouseId: r.warehouseId, recordId: r.id });
-                              }
+                            onClick={async () => {
+                              const ok = await confirm({
+                                title: `"${r.itemName}" 생산 기록을 지금 바로 결산하시겠습니까?`,
+                                description: [
+                                  'BOM에 따라 부품 재고가 즉시 차감됩니다.',
+                                  '결산 후에는 수정하거나 취소할 수 없습니다.',
+                                ],
+                                confirmLabel: '결산',
+                                destructive: true,
+                              });
+                              if (ok) forceSettle({ warehouseId: r.warehouseId, recordId: r.id });
                             }}
                           >
                             <Zap className="h-3.5 w-3.5" />
@@ -140,10 +149,14 @@ export function ProductionTable({ records }: Props) {
                             size="sm"
                             variant="outline"
                             className="text-rose-500 border-rose-200 hover:bg-rose-50 hover:text-rose-600"
-                            onClick={() => {
-                              if (confirm(`"${r.itemName}" 생산 기록을 취소하시겠습니까?\n취소 후에는 되돌릴 수 없습니다.`)) {
-                                cancel({ warehouseId: r.warehouseId, recordId: r.id });
-                              }
+                            onClick={async () => {
+                              const ok = await confirm({
+                                title: `"${r.itemName}" 생산 기록을 취소하시겠습니까?`,
+                                description: '취소 후에는 되돌릴 수 없습니다.',
+                                confirmLabel: '생산 취소',
+                                destructive: true,
+                              });
+                              if (ok) cancel({ warehouseId: r.warehouseId, recordId: r.id });
                             }}
                           >
                             <XCircle className="h-3.5 w-3.5" />
