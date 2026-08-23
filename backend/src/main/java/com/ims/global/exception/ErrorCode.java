@@ -26,6 +26,7 @@ public enum ErrorCode {
 
     // partnership
     INVALID_INVITE_TOKEN(HttpStatus.BAD_REQUEST, "유효하지 않은 초대 토큰입니다."),
+    EXPIRED_INVITE_TOKEN(HttpStatus.BAD_REQUEST, "만료된 초대입니다. 다시 초대를 요청하세요."),
     ALREADY_ACCEPTED(HttpStatus.CONFLICT, "이미 수락된 초대입니다."),
     DUPLICATE_PARTNERSHIP(HttpStatus.CONFLICT, "이미 존재하는 파트너십입니다."),
     SELF_INVITE(HttpStatus.BAD_REQUEST, "자기 자신을 초대할 수 없습니다."),

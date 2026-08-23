@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
@@ -26,6 +27,13 @@ public class PartnershipService {
     private final PartnershipRepository partnershipRepository;
     private final UserRepository userRepository;
     private final WarehouseShareRepository warehouseShareRepository;
+
+    /** 초대 링크 유효 기간. 오래된 링크가 언제든 수락되는 것을 막는다 */
+    private static final int INVITE_VALID_DAYS = 7;
+
+    private LocalDateTime newExpiry() {
+        return LocalDateTime.now().plusDays(INVITE_VALID_DAYS);
+    }
 
     /**
      * 본사가 하청에게 초대 발송
@@ -43,9 +51,21 @@ public class PartnershipService {
             throw new ImsException(ErrorCode.SELF_INVITE);
         }
 
-        if (partnershipRepository.existsByMainIdAndSubId(user.getId(), inviteUser.getId())
-                || partnershipRepository.existsByMainIdAndSubId(inviteUser.getId(), user.getId())) {
+        // 역방향 관계가 이미 있으면 방향과 무관하게 중복이다
+        if (partnershipRepository.existsByMainIdAndSubId(inviteUser.getId(), user.getId())) {
             throw new ImsException(ErrorCode.DUPLICATE_PARTNERSHIP);
+        }
+
+        // 만료된 초대는 토큰을 새로 발급해 되살린다.
+        // UK가 (main_id, sub_id)라 새 행을 만들 수 없어, 중복으로 막으면 그 관계는 영영 초대할 수 없다
+        var existing = partnershipRepository.findByMainIdAndSubId(user.getId(), inviteUser.getId());
+        if (existing.isPresent()) {
+            Partnership found = existing.get();
+            if (found.getStatus() == PartnershipStatus.ACCEPTED || !found.isInviteExpired()) {
+                throw new ImsException(ErrorCode.DUPLICATE_PARTNERSHIP);
+            }
+            found.reissueInvite(UUID.randomUUID().toString(), newExpiry());
+            return new InviteResponse(found.getId(), found.getInviteToken());
         }
 
         String token = UUID.randomUUID().toString();
@@ -55,6 +75,7 @@ public class PartnershipService {
                 .sub(inviteUser)
                 .status(PartnershipStatus.PENDING)
                 .inviteToken(token)
+                .inviteExpiresAt(newExpiry())
                 .build();
 
         Partnership saved = partnershipRepository.save(partnership);
@@ -95,6 +116,10 @@ public class PartnershipService {
 
         if (partnership.getStatus().equals(PartnershipStatus.ACCEPTED)) {
             throw new ImsException(ErrorCode.ALREADY_ACCEPTED);
+        }
+
+        if (partnership.isInviteExpired()) {
+            throw new ImsException(ErrorCode.EXPIRED_INVITE_TOKEN);
         }
 
         partnership.accept();

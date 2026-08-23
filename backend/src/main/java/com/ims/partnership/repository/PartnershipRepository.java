@@ -27,6 +27,9 @@ public interface PartnershipRepository extends JpaRepository<Partnership, Long> 
     /** 중복 초대 방지 (PENDING 포함 이미 관계 존재 여부) */
     boolean existsByMainIdAndSubId(Long mainId, Long subId);
 
+    /** 재초대 판정용 — 만료 여부를 보려면 엔티티가 필요하다 */
+    Optional<Partnership> findByMainIdAndSubId(Long mainId, Long subId);
+
     /** 두 User 간 ACCEPTED 관계 존재 여부 (창고 공유 시 검증용) */
     boolean existsByMainIdAndSubIdAndStatus(Long mainId, Long subId, PartnershipStatus status);
 }
