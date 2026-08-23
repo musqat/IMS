@@ -37,7 +37,7 @@ public class Warehouse {
      * 대신 닫는 방식을 쓴다. 과거 이력 조회는 계속 가능하다
      */
     @Builder.Default
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "boolean default true")
     private boolean active = true;
 
     @CreatedDate
@@ -46,12 +46,12 @@ public class Warehouse {
     @LastModifiedDate
     private LocalDateTime updatedAt;
 
-    /** 창고를 닫는다. 이력은 그대로 두고 목록·쓰기에서만 제외된다 */
+    /** 창고를 비활성화한다. 이력은 그대로 두고 목록·쓰기에서만 제외된다 */
     public void deactivate() {
         this.active = false;
     }
 
-    /** 닫은 창고를 다시 연다 */
+    /** 비활성 창고를 다시 활성화한다 */
     public void activate() {
         this.active = true;
     }

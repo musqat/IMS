@@ -237,7 +237,7 @@ class WarehouseServiceTest {
     }
 
     @Test
-    @DisplayName("창고 재활성화 - 닫은 창고를 다시 연다")
+    @DisplayName("창고 재활성화 - 비활성 창고를 다시 활성화한다")
     void activateWarehouse_reopens() {
         warehouse.deactivate();
         given(domainValidator.getOwnedWarehouse(1L, 1L)).willReturn(warehouse);

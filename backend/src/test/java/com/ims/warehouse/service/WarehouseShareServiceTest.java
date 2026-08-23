@@ -264,7 +264,7 @@ class WarehouseShareServiceTest {
     }
 
     // ===================== 비활성 창고 =====================
-    // 닫은 창고는 목록과 쓰기에서 빠진다. 다만 과거 이력은 계속 볼 수 있어야 하므로
+    // 비활성 창고는 목록과 쓰기에서 빠진다. 다만 과거 이력은 계속 볼 수 있어야 하므로
     // 조회 권한(checkViewAccess)은 통과시킨다.
 
     @Test
@@ -303,9 +303,9 @@ class WarehouseShareServiceTest {
     }
 
     @Test
-    @DisplayName("공유받은 창고 목록 - 소유자가 닫은 창고는 제외한다")
+    @DisplayName("공유받은 창고 목록 - 소유자가 비활성화한 창고는 제외한다")
     void getSharedWarehouses_excludesInactive() {
-        // 남이 닫은 창고가 내 공유 목록에 남으면 클릭했을 때 쓰기가 막혀 혼란스럽다
+        // 남이 비활성화한 창고가 내 공유 목록에 남으면 클릭했을 때 쓰기가 막혀 혼란스럽다
         Warehouse closed = Warehouse.builder()
                 .id(99L).owner(owner).name("닫은창고").build();
         closed.deactivate();

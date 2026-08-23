@@ -58,7 +58,7 @@ class WarehouseControllerTest {
     }
 
     private WarehouseResponse warehouseResponse() {
-        return new WarehouseResponse(1L, "서울 창고", "서울시 강남구", 1L, "테스트회사", LocalDateTime.now());
+        return new WarehouseResponse(1L, "서울 창고", "서울시 강남구", 1L, "테스트회사", true, LocalDateTime.now());
     }
 
     @Test

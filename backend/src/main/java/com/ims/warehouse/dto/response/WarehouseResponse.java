@@ -10,6 +10,7 @@ public record WarehouseResponse(
         String location,
         Long ownerId,
         String ownerCompanyName,
+        boolean active, // 활성 / 비활성 여부
         LocalDateTime createdAt
 ) {
     public static WarehouseResponse from(Warehouse warehouse) {
@@ -19,6 +20,7 @@ public record WarehouseResponse(
                 warehouse.getLocation(),
                 warehouse.getOwner().getId(),
                 warehouse.getOwner().getCompanyName(),
+                warehouse.isActive(),
                 warehouse.getCreatedAt()
         );
     }

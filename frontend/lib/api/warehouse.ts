@@ -14,6 +14,17 @@ export const warehouseApi = {
   delete: (id: number): Promise<void> =>
     apiClient.delete(`/warehouses/${id}`).then(unwrapAs<void>()),
 
+  /** 비활성 창고 목록 (활성화용) */
+  getInactive: (): Promise<WarehouseResponse[]> =>
+    apiClient.get('/warehouses/inactive').then(unwrapAs<WarehouseResponse[]>()),
+
+  /** 창고 비활성화 — 목록에서 숨기고 쓰기를 막되 이력은 보존한다 */
+  deactivate: (id: number): Promise<void> =>
+    apiClient.patch(`/warehouses/${id}/deactivate`).then(unwrapAs<void>()),
+
+  activate: (id: number): Promise<void> =>
+    apiClient.patch(`/warehouses/${id}/activate`).then(unwrapAs<void>()),
+
   getShared: (): Promise<WarehouseShareResponse[]> =>
     apiClient.get('/warehouses/shared').then(unwrapAs<WarehouseShareResponse[]>()),
 

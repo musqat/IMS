@@ -40,7 +40,7 @@ public enum ErrorCode {
     WAREHOUSE_ACCESS_DENIED(HttpStatus.FORBIDDEN, "해당 창고에 대한 접근 권한이 없습니다."),
     WAREHOUSE_HAS_INVENTORY(HttpStatus.CONFLICT, "재고가 남아 있어 창고를 삭제할 수 없습니다."),
     WAREHOUSE_HAS_PRODUCTION(HttpStatus.CONFLICT, "생산 기록이 있어 창고를 삭제할 수 없습니다."),
-    WAREHOUSE_INACTIVE(HttpStatus.CONFLICT, "닫힌 창고입니다. 다시 열어야 사용할 수 있습니다."),
+    WAREHOUSE_INACTIVE(HttpStatus.CONFLICT, "비활성화된 창고입니다. 활성화해야 사용할 수 있습니다."),
 
     // item
     ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 품목입니다."),
