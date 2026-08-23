@@ -86,10 +86,12 @@ public class WarehouseShareService {
 
     /**
      * 공유받은 창고 목록 조회
-     * - sharedWithId 기준 전체 반환
+     * - sharedWithId 기준
+     * - 소유자가 닫은 창고는 제외한다. 목록에 남으면 눌렀을 때 쓰기가 막혀 혼란스럽다
      */
     public List<WarehouseShareResponse> getSharedWarehouses(Long userId) {
         return warehouseShareRepository.findAllBySharedWithId(userId).stream()
+                .filter(share -> share.getWarehouse().isActive())
                 .map(WarehouseShareResponse::from)
                 .toList();
     }
@@ -99,15 +101,18 @@ public class WarehouseShareService {
      * - ProductionService 등에서 복잡한 EXISTS 서브쿼리 대신 IN 절로 사용
      */
     public List<Long> getAccessibleWarehouseIds(Long userId) {
-        List<Long> owned = warehouseRepository.findAllByOwnerId(userId)
+        List<Long> owned = warehouseRepository.findAllByOwnerIdAndActiveTrue(userId)
                 .stream().map(Warehouse::getId).toList();
         List<Long> shared = warehouseShareRepository.findAllBySharedWithId(userId)
-                .stream().map(ws -> ws.getWarehouse().getId()).toList();
+                .stream().map(WarehouseShare::getWarehouse)
+                .filter(Warehouse::isActive)
+                .map(Warehouse::getId).toList();
         return Stream.concat(owned.stream(), shared.stream()).distinct().toList();
     }
 
     /**
      * 창고 FULL 권한 검증 (다른 서비스에서 호출)
+     * - 닫힌 창고는 소유자도 거부. 입출고·생산이 일어나면 안 된다
      * - 소유자면 통과
      * - WarehouseShare에 FULL 권한 있으면 통과
      * - 없으면 접근 거부 예외
@@ -115,6 +120,10 @@ public class WarehouseShareService {
     public void checkFullAccess(Long userId, Long warehouseId) {
         Warehouse warehouse = warehouseRepository.findById(warehouseId)
                 .orElseThrow(() -> new ImsException(ErrorCode.WAREHOUSE_NOT_FOUND));
+
+        if (!warehouse.isActive()) {
+            throw new ImsException(ErrorCode.WAREHOUSE_INACTIVE);
+        }
 
         if (warehouse.getOwner().getId().equals(userId)) return;
 
@@ -133,6 +142,8 @@ public class WarehouseShareService {
      * - WarehouseShare에 VIEW 또는 FULL 권한 있으면 통과
      * - 검증한 창고를 반환한다. 창고 이름이나 소유자가 필요한 후속 작업에서
      *   같은 창고를 다시 조회하지 않도록 하기 위함이다
+     * - 닫힌 창고도 통과시킨다. 목록에서 빠질 뿐 과거 이력은 계속 볼 수 있어야
+     *   흐름 분석이 유지된다. 쓰기는 checkFullAccess가 막는다
      */
     public Warehouse checkViewAccess(Long userId, Long warehouseId) {
         Warehouse warehouse = warehouseRepository.findById(warehouseId)

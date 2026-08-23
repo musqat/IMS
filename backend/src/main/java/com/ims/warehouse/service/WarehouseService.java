@@ -55,7 +55,7 @@ public class WarehouseService {
      * - 해당 User 소유 창고 전체 반환
      */
     public List<WarehouseResponse> getWarehouses(Long userId) {
-        return warehouseRepository.findAllByOwnerId(userId).stream()
+        return warehouseRepository.findAllByOwnerIdAndActiveTrue(userId).stream()
                 .map(WarehouseResponse::from)
                 .toList();
     }
@@ -89,5 +89,26 @@ public class WarehouseService {
 
         warehouseShareRepository.deleteAllByWarehouseId(warehouseId);
         warehouseRepository.delete(warehouse);
+    }
+
+    /**
+     * 창고 비활성화 (소프트 삭제)
+     * - 재고나 생산 기록이 있으면 물리 삭제를 할 수 없다. 분석의 원본이기 때문
+     * - 목록과 쓰기 경로에서 빠지고 과거 이력 조회는 유지된다
+     * - 공유 설정도 그대로 둔다. 다시 열면 이전 상태로 돌아간다
+     */
+    @Transactional
+    public void deactivateWarehouse(Long userId, Long warehouseId) {
+        Warehouse warehouse = domainValidator.getOwnedWarehouse(userId, warehouseId);
+        warehouse.deactivate();
+    }
+
+    /**
+     * 창고 재활성화
+     */
+    @Transactional
+    public void activateWarehouse(Long userId, Long warehouseId) {
+        Warehouse warehouse = domainValidator.getOwnedWarehouse(userId, warehouseId);
+        warehouse.activate();
     }
 }
