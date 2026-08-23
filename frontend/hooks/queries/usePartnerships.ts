@@ -8,7 +8,7 @@ export const partnershipKeys = {
   sent: () => ['partnerships', 'invites', 'sent'] as const,
 };
 
-/** 하청이 받은 PENDING 초대 */
+/** 내가 받은 PENDING 초대 */
 export function useReceivedInvites() {
   return useQuery({
     queryKey: partnershipKeys.received(),
@@ -16,7 +16,7 @@ export function useReceivedInvites() {
   });
 }
 
-/** 본사가 보낸 PENDING 초대 */
+/** 내가 보낸 PENDING 초대 */
 export function useSentInvites() {
   return useQuery({
     queryKey: partnershipKeys.sent(),

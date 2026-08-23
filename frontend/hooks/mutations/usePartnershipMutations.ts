@@ -21,7 +21,7 @@ export function useAcceptInvite() {
   return useMutation({
     mutationFn: (partnershipId: number) => partnershipApi.acceptById(partnershipId),
     onSuccess: () => {
-      // 수락하면 받은 초대에서 빠지고 본사 목록에 들어간다
+      // 수락하면 받은 초대에서 빠지고 파트너 목록에 들어간다
       qc.invalidateQueries({ queryKey: partnershipKeys.received() });
       qc.invalidateQueries({ queryKey: partnershipKeys.mains() });
       toast.success('초대를 수락했습니다.');
@@ -30,7 +30,7 @@ export function useAcceptInvite() {
   });
 }
 
-/** 본사가 보낸 PENDING 초대 취소 */
+/** 내가 보낸 PENDING 초대 취소 (발신자만 가능) */
 export function useCancelInvite() {
   const qc = useQueryClient();
   return useMutation({

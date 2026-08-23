@@ -26,7 +26,7 @@ export function PartnerList({ title, partnerships }: Props) {
       {partnerships.length === 0 ? (
         <p className="text-stone-500 text-sm">파트너가 없습니다.</p>
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {partnerships.map((p) => {
             const isMain = user?.id === p.mainId;
             const partnerName = isMain ? p.subCompanyName : p.mainCompanyName;

@@ -14,13 +14,13 @@ public interface PartnershipRepository extends JpaRepository<Partnership, Long> 
     Optional<Partnership> findByInviteToken(String inviteToken);
 
     /**
-     * 본사 기준 하청 목록
+     * 내가 초대한 쪽 목록
      * - PartnershipResponse가 main·sub의 회사명을 읽으므로 함께 로딩한다 (없으면 행당 2쿼리)
      */
     @EntityGraph(attributePaths = {"main", "sub"})
     List<Partnership> findAllByMainIdAndStatus(Long mainId, PartnershipStatus status);
 
-    /** 하청 기준 본사 목록 */
+    /** 나를 초대한 쪽 목록 */
     @EntityGraph(attributePaths = {"main", "sub"})
     List<Partnership> findAllBySubIdAndStatus(Long subId, PartnershipStatus status);
 

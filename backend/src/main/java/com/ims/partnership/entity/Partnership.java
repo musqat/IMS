@@ -22,10 +22,18 @@ public class Partnership {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /**
+     * 초대를 보낸 쪽
+     * - main/sub는 초대 방향만 나타낸다. 위계가 아니다
+     * - 관계가 맺어진 뒤로는 두 회사가 대등하다.
+     *   창고 공유 판정(isPartner)이 양방향이고 권한은 소유자·FULL·VIEW로만 갈린다
+     * - 방향이 실제로 가르는 것은 초대 발송·취소(main)와 수락(sub)뿐이다
+     */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "main_id", nullable = false)
     private User main;
 
+    /** 초대를 받은 쪽 */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sub_id", nullable = false)
     private User sub;

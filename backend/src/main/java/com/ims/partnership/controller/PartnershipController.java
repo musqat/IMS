@@ -32,7 +32,7 @@ public class PartnershipController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
 
-    /** PENDING 초대 취소 (본사만 가능) */
+    /** PENDING 초대 취소 (보낸 쪽만 가능) */
     @DeleteMapping("/{partnershipId}/invite")
     public ResponseEntity<ApiResponse<Void>> cancelInvite(
             @AuthenticationPrincipal Long userId,
@@ -62,7 +62,7 @@ public class PartnershipController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    /** 받은 초대 목록 (하청 기준, PENDING) */
+    /** 내가 받은 초대 목록 (PENDING) */
     @GetMapping("/invites/received")
     public ResponseEntity<ApiResponse<List<PartnershipResponse>>> getReceivedInvites(
             @AuthenticationPrincipal Long userId
@@ -70,7 +70,7 @@ public class PartnershipController {
         return ResponseEntity.ok(ApiResponse.success(partnershipService.getReceivedInvites(userId)));
     }
 
-    /** 보낸 초대 목록 (본사 기준, PENDING) */
+    /** 내가 보낸 초대 목록 (PENDING) */
     @GetMapping("/invites/sent")
     public ResponseEntity<ApiResponse<List<PartnershipResponse>>> getSentInvites(
             @AuthenticationPrincipal Long userId
@@ -78,7 +78,7 @@ public class PartnershipController {
         return ResponseEntity.ok(ApiResponse.success(partnershipService.getSentInvites(userId)));
     }
 
-    /** 하청 목록 조회 (본사 기준) */
+    /** 내가 초대해서 맺어진 파트너 목록 */
     @GetMapping("/subs")
     public ResponseEntity<ApiResponse<List<PartnershipResponse>>> getSubList(
             @AuthenticationPrincipal Long userId
@@ -87,7 +87,7 @@ public class PartnershipController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    /** 본사 목록 조회 (하청 기준) */
+    /** 나를 초대해서 맺어진 파트너 목록 */
     @GetMapping("/mains")
     public ResponseEntity<ApiResponse<List<PartnershipResponse>>> getMainList(
             @AuthenticationPrincipal Long userId

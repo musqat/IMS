@@ -31,7 +31,7 @@ export default function LandingPage() {
           제조업 협업 재고관리
         </h1>
         <p className="text-xl text-stone-500 mb-12 max-w-2xl mx-auto">
-          본사와 하청사가 함께 창고, 재고, 생산 결산을 실시간으로 관리합니다.
+          파트너사끼리 창고, 재고, 생산 결산을 실시간으로 함께 관리합니다.
         </p>
         <div className="flex gap-4 justify-center">
           <Link href="/register" className={cn(buttonVariants({ size: 'lg' }))}>
@@ -48,7 +48,7 @@ export default function LandingPage() {
         <div className="grid grid-cols-3 gap-6">
           {[
             {
-              title: '본사-하청 협업',
+              title: '파트너사 협업',
               desc: '초대 링크로 파트너 관계를 맺고 창고와 재고를 실시간 공유합니다.',
             },
             {
