@@ -40,6 +40,8 @@ export interface PartnershipResponse {
   status: 'PENDING' | 'ACCEPTED';
   acceptedAt: string | null;
   alias: string | null;
+  /** PENDING 초대의 만료 시각. 수락된 초대와 TTL 이전 데이터는 null */
+  inviteExpiresAt: string | null;
 }
 
 export interface WarehouseResponse {

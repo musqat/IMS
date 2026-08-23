@@ -102,29 +102,69 @@ public class PartnershipService {
 
     /**
      * 하청이 초대 토큰으로 수락
-     * - 토큰으로 Partnership 조회
-     * - 수락 대상자 및 이미 수락된 상태 여부 검증
-     * - partnership.accept() 호출
+     * - 수신함이 생긴 뒤에도 남긴다. 토큰만 받은 경우의 폴백이다
      */
     @Transactional
     public PartnershipResponse accept(Long subId, String token) {
-        Partnership partnership = partnershipRepository.findByInviteToken(token).orElseThrow(() -> new ImsException(ErrorCode.INVALID_INVITE_TOKEN));
+        Partnership partnership = partnershipRepository.findByInviteToken(token)
+                .orElseThrow(() -> new ImsException(ErrorCode.INVALID_INVITE_TOKEN));
 
-        if (!partnership.getSub().getId().equals(subId)) {
-            throw new ImsException(ErrorCode.FORBIDDEN);
-        }
-
-        if (partnership.getStatus().equals(PartnershipStatus.ACCEPTED)) {
-            throw new ImsException(ErrorCode.ALREADY_ACCEPTED);
-        }
-
-        if (partnership.isInviteExpired()) {
-            throw new ImsException(ErrorCode.EXPIRED_INVITE_TOKEN);
-        }
-
+        validateAcceptable(partnership, subId);
         partnership.accept();
 
         return PartnershipResponse.from(partnership);
+    }
+
+    /**
+     * 하청이 수신함에서 초대를 수락
+     * - 토큰 없이 partnershipId로 수락한다.
+     *   sub_id는 초대 시점에 이미 고정되므로 JWT의 subId와 대조하면 토큰과 같은 역할을 한다
+     */
+    @Transactional
+    public PartnershipResponse acceptById(Long subId, Long partnershipId) {
+        Partnership partnership = partnershipRepository.findById(partnershipId)
+                .orElseThrow(() -> new ImsException(ErrorCode.PARTNERSHIP_NOT_FOUND));
+
+        validateAcceptable(partnership, subId);
+        partnership.accept();
+
+        return PartnershipResponse.from(partnership);
+    }
+
+    /**
+     * 수락 가능 여부 검증
+     * - accept(token)과 acceptById(id)가 공유한다.
+     *   진입 경로만 다르고 검증 규칙은 같아야 하므로 한 곳에 둔다
+     * - 본인 대상인지 / 이미 수락됐는지 / 만료됐는지
+     * - 소유자 확인이 먼저다. 순서가 바뀌면 남의 초대라도 상태 응답으로 존재 여부를 알 수 있다
+     */
+    private void validateAcceptable(Partnership partnership, Long subId) {
+        if (!partnership.getSub().getId().equals(subId)) {
+            throw new ImsException(ErrorCode.FORBIDDEN);
+        }
+        if (partnership.getStatus() == PartnershipStatus.ACCEPTED) {
+            throw new ImsException(ErrorCode.ALREADY_ACCEPTED);
+        }
+        if (partnership.isInviteExpired()) {
+            throw new ImsException(ErrorCode.EXPIRED_INVITE_TOKEN);
+        }
+    }
+
+    /**
+     * 하청이 받은 PENDING 초대 목록
+     * - 만료된 초대도 포함한다. 목록에서 사라지면 하청은 초대가 있었는지조차 모른다.
+     *   만료 표시는 inviteExpiresAt으로 화면에서 판단한다
+     */
+    public List<PartnershipResponse> getReceivedInvites(Long subId) {
+        return partnershipRepository.findAllBySubIdAndStatus(subId, PartnershipStatus.PENDING).stream().map(PartnershipResponse::from).toList();
+    }
+
+    /**
+     * 본사가 보낸 PENDING 초대 목록
+     * - 보낸 초대가 안 보이면 본사는 수락 여부를 알 수 없어 계속 재초대하게 된다
+     */
+    public List<PartnershipResponse> getSentInvites(Long mainId) {
+        return partnershipRepository.findAllByMainIdAndStatus(mainId, PartnershipStatus.PENDING).stream().map(PartnershipResponse::from).toList();
     }
 
     /**

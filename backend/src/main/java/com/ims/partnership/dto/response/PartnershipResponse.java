@@ -13,7 +13,8 @@ public record PartnershipResponse(
         String subCompanyCode,
         String status,
         LocalDateTime acceptedAt,
-        String alias
+        String alias,
+        LocalDateTime inviteExpiresAt
 ) {
     public static PartnershipResponse from(Partnership partnership) {
         return new PartnershipResponse(
@@ -25,7 +26,8 @@ public record PartnershipResponse(
                 partnership.getSub().getCompanyCode(),
                 partnership.getStatus().name(),
                 partnership.getAcceptedAt(),
-                partnership.getAlias()
+                partnership.getAlias(),
+                partnership.getInviteExpiresAt()
         );
     }
 }

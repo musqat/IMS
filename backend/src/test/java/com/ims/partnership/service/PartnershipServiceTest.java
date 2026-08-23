@@ -436,4 +436,119 @@ class PartnershipServiceTest {
                 .isInstanceOf(ImsException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.DUPLICATE_PARTNERSHIP);
     }
+
+    // ===================== 초대 수신함 =====================
+
+    /** PENDING 초대 하나를 만든다. 만료까지 남은 일수를 인자로 받는다 */
+    private Partnership pendingInvite(long daysLeft) {
+        return Partnership.builder()
+                .id(1L).main(mainUser).sub(subUser)
+                .status(PartnershipStatus.PENDING)
+                .inviteToken("tok")
+                .inviteExpiresAt(LocalDateTime.now().plusDays(daysLeft))
+                .build();
+    }
+
+    @Test
+    @DisplayName("수신함 수락 성공 - 토큰 없이 id로 수락하면 토큰과 만료가 비워진다")
+    void acceptById_success() {
+        // given - 유효한 PENDING 초대
+        Partnership pending = pendingInvite(7);
+        given(partnershipRepository.findById(1L)).willReturn(Optional.of(pending));
+
+        // when - 대상 하청이 id로 수락
+        PartnershipResponse result = partnershipService.acceptById(subUser.getId(), 1L);
+
+        // then - 상태가 바뀌고 토큰이 재사용되지 않도록 비워진다
+        assertThat(result.status()).isEqualTo("ACCEPTED");
+        assertThat(pending.getInviteToken()).isNull();
+        assertThat(pending.getInviteExpiresAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("수신함 수락 실패 - 존재하지 않는 파트너십")
+    void acceptById_notFound() {
+        // given - 해당 id의 초대가 없다
+        given(partnershipRepository.findById(99L)).willReturn(Optional.empty());
+
+        // when & then - 예외 테스트는 반환값이 없어 호출 자체를 감싼다
+        assertThatThrownBy(() -> partnershipService.acceptById(subUser.getId(), 99L))
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.PARTNERSHIP_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("수신함 수락 실패 - 내게 온 초대가 아니다")
+    void acceptById_forbidden() {
+        // given - 만료되지 않은 초대. 만료된 걸 쓰면 어느 검사에서 걸렸는지 구분이 안 된다
+        given(partnershipRepository.findById(1L)).willReturn(Optional.of(pendingInvite(7)));
+
+        // when & then - 초대 대상이 아닌 제3자가 수락을 시도한다
+        assertThatThrownBy(() -> partnershipService.acceptById(99L, 1L))
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName("수신함 수락 실패 - 만료된 초대")
+    void acceptById_expired() {
+        // given - 만료 시각이 이미 지난 초대
+        given(partnershipRepository.findById(1L)).willReturn(Optional.of(pendingInvite(-1)));
+
+        // when & then
+        assertThatThrownBy(() -> partnershipService.acceptById(subUser.getId(), 1L))
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EXPIRED_INVITE_TOKEN);
+    }
+
+    @Test
+    @DisplayName("수신함 수락 실패 - 이미 수락된 초대")
+    void acceptById_alreadyAccepted() {
+        // given - 이미 수락된 관계. 토큰과 만료가 비워진 상태가 정상이라 따로 넣지 않는다
+        Partnership accepted = Partnership.builder()
+                .id(1L).main(mainUser).sub(subUser)
+                .status(PartnershipStatus.ACCEPTED)
+                .build();
+        given(partnershipRepository.findById(1L)).willReturn(Optional.of(accepted));
+
+        // when & then
+        assertThatThrownBy(() -> partnershipService.acceptById(subUser.getId(), 1L))
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ALREADY_ACCEPTED);
+    }
+
+    @Test
+    @DisplayName("받은 초대 목록 - PENDING만 조회한다")
+    void getReceivedInvites_pendingOnly() {
+        // given - PENDING 초대 1건.
+        //         status를 값으로 고정한다. any()로 두면 서비스가 ACCEPTED를 넘겨도 통과해버린다
+        given(partnershipRepository.findAllBySubIdAndStatus(
+                subUser.getId(), PartnershipStatus.PENDING))
+                .willReturn(List.of(pendingInvite(7)));
+
+        // when
+        List<PartnershipResponse> result = partnershipService.getReceivedInvites(subUser.getId());
+
+        // then - 하청 화면은 본사 이름을 본다
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).status()).isEqualTo("PENDING");
+        assertThat(result.get(0).mainCompanyName()).isEqualTo("본사");
+    }
+
+    @Test
+    @DisplayName("보낸 초대 목록 - PENDING만 조회한다")
+    void getSentInvites_pendingOnly() {
+        // given - PENDING 초대 1건
+        given(partnershipRepository.findAllByMainIdAndStatus(
+                mainUser.getId(), PartnershipStatus.PENDING))
+                .willReturn(List.of(pendingInvite(7)));
+
+        // when
+        List<PartnershipResponse> result = partnershipService.getSentInvites(mainUser.getId());
+
+        // then - 본사 화면은 하청 이름을 본다
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).status()).isEqualTo("PENDING");
+        assertThat(result.get(0).subCompanyName()).isEqualTo("하청");
+    }
 }

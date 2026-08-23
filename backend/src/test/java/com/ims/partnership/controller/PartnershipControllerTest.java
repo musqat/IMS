@@ -83,7 +83,7 @@ class PartnershipControllerTest {
     @Test
     @DisplayName("초대 수락 성공")
     void accept_success() throws Exception {
-        PartnershipResponse response = new PartnershipResponse(1L, 1L, "본사", 2L, "하청", "SUB001", "ACCEPTED", null, null);
+        PartnershipResponse response = new PartnershipResponse(1L, 1L, "본사", 2L, "하청", "SUB001", "ACCEPTED", null, null, null);
         given(partnershipService.accept(eq(2L), eq("valid-token"))).willReturn(response);
 
         mockMvc.perform(post("/api/v1/partnerships/accept")
@@ -108,7 +108,7 @@ class PartnershipControllerTest {
     @Test
     @DisplayName("하청 목록 조회 성공")
     void getSubList_success() throws Exception {
-        PartnershipResponse response = new PartnershipResponse(1L, 1L, "본사", 2L, "하청", "SUB001", "ACCEPTED", null, null);
+        PartnershipResponse response = new PartnershipResponse(1L, 1L, "본사", 2L, "하청", "SUB001", "ACCEPTED", null, null, null);
         given(partnershipService.getSubList(1L)).willReturn(List.of(response));
 
         mockMvc.perform(get("/api/v1/partnerships/subs")
@@ -120,7 +120,7 @@ class PartnershipControllerTest {
     @Test
     @DisplayName("본사 목록 조회 성공")
     void getMainList_success() throws Exception {
-        PartnershipResponse response = new PartnershipResponse(1L, 1L, "본사", 2L, "하청", "SUB001", "ACCEPTED", null, null);
+        PartnershipResponse response = new PartnershipResponse(1L, 1L, "본사", 2L, "하청", "SUB001", "ACCEPTED", null, null, null);
         given(partnershipService.getMainList(2L)).willReturn(List.of(response));
 
         mockMvc.perform(get("/api/v1/partnerships/mains")
@@ -132,7 +132,7 @@ class PartnershipControllerTest {
     @Test
     @DisplayName("별명 설정 성공")
     void updateAlias_success() throws Exception {
-        PartnershipResponse response = new PartnershipResponse(1L, 1L, "본사", 2L, "하청", "SUB001", "ACCEPTED", null, "우리하청");
+        PartnershipResponse response = new PartnershipResponse(1L, 1L, "본사", 2L, "하청", "SUB001", "ACCEPTED", null, "우리하청", null);
         given(partnershipService.updateAlias(eq(1L), eq(1L), eq("우리하청"))).willReturn(response);
 
         mockMvc.perform(patch("/api/v1/partnerships/1/alias")
@@ -158,5 +158,54 @@ class PartnershipControllerTest {
     void removePartnership_unauthorized() throws Exception {
         mockMvc.perform(delete("/api/v1/partnerships/1"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    // ===================== 초대 수신함 =====================
+
+    @Test
+    @DisplayName("수신함 수락 성공")
+    void acceptById_success() throws Exception {
+        // given
+        PartnershipResponse response = new PartnershipResponse(
+                1L, 1L, "본사", 2L, "하청", "SUB001", "ACCEPTED", null, null, null);
+        given(partnershipService.acceptById(2L, 1L)).willReturn(response);
+
+        // when & then - 토큰 방식 POST /partnerships/accept와 경로가 겹치지 않는 것도 함께 확인된다
+        mockMvc.perform(post("/api/v1/partnerships/1/accept")
+                        .with(authentication(auth(2L))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("ACCEPTED"));
+    }
+
+    @Test
+    @DisplayName("받은 초대 목록 조회 성공")
+    void getReceivedInvites_success() throws Exception {
+        // given
+        PartnershipResponse response = new PartnershipResponse(
+                1L, 1L, "본사", 2L, "하청", "SUB001", "PENDING", null, null, null);
+        given(partnershipService.getReceivedInvites(2L)).willReturn(List.of(response));
+
+        // when & then - 하청 화면은 본사 이름을 본다
+        mockMvc.perform(get("/api/v1/partnerships/invites/received")
+                        .with(authentication(auth(2L))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].mainCompanyName").value("본사"))
+                .andExpect(jsonPath("$.data[0].status").value("PENDING"));
+    }
+
+    @Test
+    @DisplayName("보낸 초대 목록 조회 성공")
+    void getSentInvites_success() throws Exception {
+        // given
+        PartnershipResponse response = new PartnershipResponse(
+                1L, 1L, "본사", 2L, "하청", "SUB001", "PENDING", null, null, null);
+        given(partnershipService.getSentInvites(1L)).willReturn(List.of(response));
+
+        // when & then - 본사 화면은 하청 이름을 본다
+        mockMvc.perform(get("/api/v1/partnerships/invites/sent")
+                        .with(authentication(auth(1L))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].subCompanyName").value("하청"))
+                .andExpect(jsonPath("$.data[0].status").value("PENDING"));
     }
 }

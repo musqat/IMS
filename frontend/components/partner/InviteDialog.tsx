@@ -68,9 +68,12 @@ export function InviteDialog({ open, onClose }: Props) {
           </form>
         ) : (
           <div className="space-y-4">
-            <p className="text-sm text-stone-600">초대 토큰이 생성되었습니다. 하청사에 전달하세요.</p>
-            {/* 발급자가 유효 기간을 알아야 오래 보관했다가 만료되는 일이 없다 */}
+            {/* 수신함이 생긴 뒤로 토큰 전달은 선택이다. 상대 화면에 이미 떠 있다 */}
+            <p className="text-sm text-stone-600">
+              초대를 보냈습니다. 상대 파트너 화면의 &lsquo;받은 초대&rsquo;에서 바로 수락할 수 있습니다.
+            </p>
             <p className="text-xs text-amber-600">7일 후 만료됩니다. 만료되면 다시 초대하세요.</p>
+            <p className="text-xs text-stone-500">아래 토큰으로도 수락할 수 있습니다.</p>
             <div className="flex items-center gap-2">
               <Input value={token} readOnly className="font-mono text-xs" />
               <Button type="button" size="icon" variant="outline" onClick={handleCopy}>
