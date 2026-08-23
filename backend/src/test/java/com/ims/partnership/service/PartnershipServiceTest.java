@@ -20,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
@@ -69,8 +70,8 @@ class PartnershipServiceTest {
         // mainId는 JWT 인증 userId → getReferenceById 프록시 사용
         given(userRepository.getReferenceById(1L)).willReturn(mainUser);
         given(userRepository.findByCompanyCode("2000000001")).willReturn(Optional.of(subUser));
-        given(partnershipRepository.existsByMainIdAndSubId(1L, 2L)).willReturn(false);
         given(partnershipRepository.existsByMainIdAndSubId(2L, 1L)).willReturn(false);
+        given(partnershipRepository.findByMainIdAndSubId(1L, 2L)).willReturn(Optional.empty());
         given(partnershipRepository.save(any())).willAnswer(i -> i.getArgument(0));
 
         InviteResponse response = partnershipService.invite(1L, request);
@@ -97,7 +98,10 @@ class PartnershipServiceTest {
         InviteRequest request = new InviteRequest("2000000001");
         given(userRepository.getReferenceById(1L)).willReturn(mainUser);
         given(userRepository.findByCompanyCode("2000000001")).willReturn(Optional.of(subUser));
-        given(partnershipRepository.existsByMainIdAndSubId(1L, 2L)).willReturn(true);
+        given(partnershipRepository.existsByMainIdAndSubId(2L, 1L)).willReturn(false);
+        given(partnershipRepository.findByMainIdAndSubId(1L, 2L)).willReturn(Optional.of(
+                Partnership.builder().id(1L).main(mainUser).sub(subUser)
+                        .status(PartnershipStatus.ACCEPTED).build()));
 
         assertThatThrownBy(() -> partnershipService.invite(1L, request))
                 .isInstanceOf(ImsException.class)
@@ -110,7 +114,6 @@ class PartnershipServiceTest {
         InviteRequest request = new InviteRequest("2000000001");
         given(userRepository.getReferenceById(1L)).willReturn(mainUser);
         given(userRepository.findByCompanyCode("2000000001")).willReturn(Optional.of(subUser));
-        given(partnershipRepository.existsByMainIdAndSubId(1L, 2L)).willReturn(false);
         given(partnershipRepository.existsByMainIdAndSubId(2L, 1L)).willReturn(true);
 
         assertThatThrownBy(() -> partnershipService.invite(1L, request))
@@ -367,5 +370,70 @@ class PartnershipServiceTest {
                 .isInstanceOf(ImsException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ALREADY_ACCEPTED);
         then(partnershipRepository).should(never()).delete(any());
+    }
+
+    // ===================== 초대 토큰 만료 =====================
+    // 토큰이 영구 유효하면 오래된 링크가 언제든 수락된다.
+    // 만료된 초대는 재초대로 되살린다. UK가 (main_id, sub_id)라 새 행을 만들 수 없어
+    // 기존 행의 토큰과 만료 시각을 새로 발급한다.
+
+    @Test
+    @DisplayName("초대 수락 실패 - 만료된 토큰")
+    void accept_expiredToken() {
+        Partnership expired = Partnership.builder()
+                .id(1L).main(mainUser).sub(subUser)
+                .status(PartnershipStatus.PENDING)
+                .inviteToken("expired-token")
+                .inviteExpiresAt(LocalDateTime.now().minusDays(1))
+                .build();
+        given(partnershipRepository.findByInviteToken("expired-token")).willReturn(Optional.of(expired));
+
+        assertThatThrownBy(() -> partnershipService.accept(subUser.getId(), "expired-token"))
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EXPIRED_INVITE_TOKEN);
+        assertThat(expired.getStatus()).isEqualTo(PartnershipStatus.PENDING);
+    }
+
+    @Test
+    @DisplayName("초대 - 만료된 초대가 있으면 토큰을 새로 발급한다")
+    void invite_expiredInvite_reissues() {
+        // 만료된 PENDING이 남아 있으면 UK 때문에 새 초대를 만들 수 없다.
+        // 중복으로 막으면 그 관계는 영영 초대할 수 없게 된다
+        Partnership expired = Partnership.builder()
+                .id(1L).main(mainUser).sub(subUser)
+                .status(PartnershipStatus.PENDING)
+                .inviteToken("old-token")
+                .inviteExpiresAt(LocalDateTime.now().minusDays(1))
+                .build();
+
+        given(userRepository.getReferenceById(mainUser.getId())).willReturn(mainUser);
+        given(userRepository.findByCompanyCode("2000000001")).willReturn(Optional.of(subUser));
+        given(partnershipRepository.findByMainIdAndSubId(mainUser.getId(), subUser.getId()))
+                .willReturn(Optional.of(expired));
+
+        InviteResponse result = partnershipService.invite(mainUser.getId(), new InviteRequest("2000000001"));
+
+        assertThat(result.inviteToken()).isNotEqualTo("old-token");
+        assertThat(expired.getInviteExpiresAt()).isAfter(LocalDateTime.now());
+    }
+
+    @Test
+    @DisplayName("초대 실패 - 아직 유효한 초대가 있으면 중복이다")
+    void invite_validInviteExists_duplicate() {
+        Partnership valid = Partnership.builder()
+                .id(1L).main(mainUser).sub(subUser)
+                .status(PartnershipStatus.PENDING)
+                .inviteToken("valid-token")
+                .inviteExpiresAt(LocalDateTime.now().plusDays(3))
+                .build();
+
+        given(userRepository.getReferenceById(mainUser.getId())).willReturn(mainUser);
+        given(userRepository.findByCompanyCode("2000000001")).willReturn(Optional.of(subUser));
+        given(partnershipRepository.findByMainIdAndSubId(mainUser.getId(), subUser.getId()))
+                .willReturn(Optional.of(valid));
+
+        assertThatThrownBy(() -> partnershipService.invite(mainUser.getId(), new InviteRequest("2000000001")))
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.DUPLICATE_PARTNERSHIP);
     }
 }
