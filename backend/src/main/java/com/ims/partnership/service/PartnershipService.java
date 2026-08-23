@@ -36,8 +36,8 @@ public class PartnershipService {
     }
 
     /**
-     * 본사가 하청에게 초대 발송
-     * - companyCode로 하청 User 조회
+     * 파트너 초대 발송
+     * - companyCode로 상대 User 조회
      * - 자기 자신 초대 및 이미 관계 존재 여부 검증
      * - UUID 토큰 생성 후 Partnership(PENDING) 저장
      */
@@ -83,8 +83,8 @@ public class PartnershipService {
     }
 
     /**
-     * 본사가 PENDING 초대 취소
-     * - 본사만 취소 가능
+     * PENDING 초대 취소
+     * - 초대를 보낸 쪽만 취소 가능
      * - PENDING 상태인 경우만 취소 가능 (ACCEPTED는 removePartnership 사용)
      */
     @Transactional
@@ -101,7 +101,7 @@ public class PartnershipService {
     }
 
     /**
-     * 하청이 초대 토큰으로 수락
+     * 초대 토큰으로 수락
      * - 수신함이 생긴 뒤에도 남긴다. 토큰만 받은 경우의 폴백이다
      */
     @Transactional
@@ -116,7 +116,7 @@ public class PartnershipService {
     }
 
     /**
-     * 하청이 수신함에서 초대를 수락
+     * 수신함에서 초대를 수락
      * - 토큰 없이 partnershipId로 수락한다.
      *   sub_id는 초대 시점에 이미 고정되므로 JWT의 subId와 대조하면 토큰과 같은 역할을 한다
      */
@@ -151,8 +151,8 @@ public class PartnershipService {
     }
 
     /**
-     * 하청이 받은 PENDING 초대 목록
-     * - 만료된 초대도 포함한다. 목록에서 사라지면 하청은 초대가 있었는지조차 모른다.
+     * 내가 받은 PENDING 초대 목록
+     * - 만료된 초대도 포함한다. 목록에서 사라지면 초대가 있었다는 사실조차 알 수 없다.
      *   만료 표시는 inviteExpiresAt으로 화면에서 판단한다
      */
     public List<PartnershipResponse> getReceivedInvites(Long subId) {
@@ -160,22 +160,22 @@ public class PartnershipService {
     }
 
     /**
-     * 본사가 보낸 PENDING 초대 목록
-     * - 보낸 초대가 안 보이면 본사는 수락 여부를 알 수 없어 계속 재초대하게 된다
+     * 내가 보낸 PENDING 초대 목록
+     * - 보낸 초대가 안 보이면 수락 여부를 알 수 없어 계속 재초대하게 된다
      */
     public List<PartnershipResponse> getSentInvites(Long mainId) {
         return partnershipRepository.findAllByMainIdAndStatus(mainId, PartnershipStatus.PENDING).stream().map(PartnershipResponse::from).toList();
     }
 
     /**
-     * 본사 기준 ACCEPTED 하청 목록 조회
+     * 내가 초대해서 맺어진 ACCEPTED 파트너 목록
      */
     public List<PartnershipResponse> getSubList(Long mainId) {
         return partnershipRepository.findAllByMainIdAndStatus(mainId, PartnershipStatus.ACCEPTED).stream().map(PartnershipResponse::from).toList();
     }
 
     /**
-     * 하청 기준 ACCEPTED 본사 목록 조회
+     * 나를 초대해서 맺어진 ACCEPTED 파트너 목록
      */
     public List<PartnershipResponse> getMainList(Long subId) {
         return partnershipRepository.findAllBySubIdAndStatus(subId, PartnershipStatus.ACCEPTED).stream().map(PartnershipResponse::from).toList();

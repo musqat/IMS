@@ -85,7 +85,7 @@ export default function DashboardPage() {
   const countsQuery = useProductionCounts();
 
   // 부족 분석은 소유 창고와 공유받은 창고를 모두 대상으로 한다.
-  // 본사가 하청 창고의 부족분을 확인하는 것이 이 화면의 목적이다
+  // 파트너사 창고의 부족분까지 한 화면에서 보는 것이 목적이다
   const warehouses = warehousesQuery.data;
   const counts = countsQuery.data;
 

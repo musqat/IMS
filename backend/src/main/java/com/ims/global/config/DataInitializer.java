@@ -36,7 +36,7 @@ public class DataInitializer implements ApplicationRunner {
 
         log.info("[DataInitializer] Applying seed data...");
 
-        // A: 메인 데모 계정 (조립사), B/C: A의 하청, D: 물류(초대 대기), E: A의 본사
+        // A: 메인 데모 계정 (조립사), B/C: A가 초대한 파트너, D: 물류(초대 대기), E: A를 초대한 파트너
         userService.signUp(new RegisterRequest("a@ims.dev", "Test1234!", "아이테크조립(주)"));
         userService.signUp(new RegisterRequest("b@ims.dev", "Test1234!", "비전전자(주)"));
         userService.signUp(new RegisterRequest("c@ims.dev", "Test1234!", "씨메카닉스(주)"));

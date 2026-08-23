@@ -48,12 +48,12 @@ export function InviteDialog({ open, onClose }: Props) {
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>하청 초대</DialogTitle>
+          <DialogTitle>파트너 초대</DialogTitle>
         </DialogHeader>
         {!token ? (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="companyCode">하청 회사 코드</Label>
+              <Label htmlFor="companyCode">파트너 회사 코드</Label>
               <Input
                 id="companyCode"
                 value={companyCode}

@@ -21,6 +21,8 @@ export default function PartnersPage() {
   const isLoading = subsLoading || mainsLoading;
   const [inviteOpen, setInviteOpen] = useState(false);
 
+  const partners = [...subs, ...mains];
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -28,7 +30,7 @@ export default function PartnersPage() {
         {/* 토큰 붙여넣기 수락은 뺐다. 받은 초대가 아래에 뜨고 버튼으로 수락한다 */}
         <Button onClick={() => setInviteOpen(true)}>
           <UserPlus className="h-4 w-4 mr-2" />
-          하청 초대
+          파트너 초대
         </Button>
       </div>
 
@@ -36,29 +38,18 @@ export default function PartnersPage() {
       <InviteInbox direction="received" invites={received} />
       <InviteInbox direction="sent" invites={sent} />
 
-      <div className="grid grid-cols-2 gap-6">
-        {isLoading ? (
-          <>
-            <div className="space-y-2">
-              <Skeleton className="h-6 w-24 mb-3" />
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full" />
-              ))}
-            </div>
-            <div className="space-y-2">
-              <Skeleton className="h-6 w-24 mb-3" />
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full" />
-              ))}
-            </div>
-          </>
-        ) : (
-          <>
-            <PartnerList title="내 하청사" partnerships={subs} />
-            <PartnerList title="내 본사" partnerships={mains} />
-          </>
-        )}
-      </div>
+      {isLoading ? (
+        <div>
+          <Skeleton className="h-6 w-24 mb-3" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-16 w-full" />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <PartnerList title="내 파트너사" partnerships={partners} />
+      )}
 
       <InviteDialog open={inviteOpen} onClose={() => setInviteOpen(false)} />
     </div>
