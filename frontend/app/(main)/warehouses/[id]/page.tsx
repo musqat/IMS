@@ -42,7 +42,9 @@ export default function WarehouseDetailPage() {
   const permissionLoading = warehouseLoading || sharedLoading || !user;
   const isOwner = warehouse?.ownerId === user?.id;
   const sharedEntry = sharedWarehouses.find((s) => s.warehouseId === warehouseId);
-  const isViewOnly = permissionLoading || (!isOwner && sharedEntry?.permission === 'VIEW');
+  // 비활성 창고는 소유자도 쓰기가 막힌다. 목록에서는 빠지지만 URL로는 들어올 수 있다
+  const isInactive = warehouse?.active === false;
+  const isViewOnly = permissionLoading || isInactive || (!isOwner && sharedEntry?.permission === 'VIEW');
 
   const belowSafety = inventories.filter((inv) => inv.warning).length;
 
@@ -67,6 +69,11 @@ export default function WarehouseDetailPage() {
             ? <Skeleton className="h-8 w-48" />
             : <h1 className="text-2xl font-bold text-stone-900">{warehouse?.name ?? '...'}</h1>
           }
+          {isInactive && (
+            <Badge className="bg-stone-200 text-stone-600 border-stone-300">
+              비활성 창고
+            </Badge>
+          )}
           {belowSafety > 0 && (
             <Badge className="bg-rose-100 text-rose-600 border-rose-200">
               재고부족 {belowSafety}건

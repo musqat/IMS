@@ -48,6 +48,8 @@ export interface WarehouseResponse {
   location: string;
   ownerId: number;
   ownerCompanyName: string;
+  /** false면 비활성 창고. 목록에서 숨겨지고 쓰기가 막히되 상세 조회는 가능하다 */
+  active: boolean;
   createdAt: string;
 }
 

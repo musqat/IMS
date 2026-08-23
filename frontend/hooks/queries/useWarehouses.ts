@@ -8,6 +8,7 @@ export const warehouseKeys = {
   lists: () => [...warehouseKeys.all(), 'list'] as const,
   detail: (id: number) => [...warehouseKeys.all(), 'detail', id] as const,
   shared: () => [...warehouseKeys.all(), 'shared'] as const,
+  inactive: () => [...warehouseKeys.all(), 'inactive'] as const,
 };
 
 export function useWarehouses() {
@@ -75,4 +76,13 @@ export function useAccessibleWarehouses() {
       sharedQuery.refetch();
     },
   };
+}
+
+/** 비활성 창고 목록 — 활성화 화면용 */
+export function useInactiveWarehouses(enabled = false) {
+  return useQuery({
+    queryKey: warehouseKeys.inactive(),
+    queryFn: warehouseApi.getInactive,
+    enabled,
+  });
 }

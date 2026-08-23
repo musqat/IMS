@@ -100,7 +100,7 @@ class WarehouseServiceTest {
     @Test
     @DisplayName("창고 전체 조회 성공")
     void getWarehouses_success() {
-        given(warehouseRepository.findAllByOwnerId(1L)).willReturn(List.of(warehouse));
+        given(warehouseRepository.findAllByOwnerIdAndActiveTrue(1L)).willReturn(List.of(warehouse));
 
         List<WarehouseResponse> result = warehouseService.getWarehouses(1L);
 
@@ -208,5 +208,54 @@ class WarehouseServiceTest {
 
         then(warehouseShareRepository).should().deleteAllByWarehouseId(1L);
         then(warehouseRepository).should().delete(warehouse);
+    }
+
+    // ===================== 소프트 삭제 =====================
+    // 재고·생산 기록이 있으면 물리 삭제를 할 수 없다. 분석의 원본이기 때문이다.
+    // 대신 창고를 닫는다. 목록과 쓰기에서 빠지고 과거 이력 조회는 유지된다.
+
+    @Test
+    @DisplayName("창고 비활성화 - active를 false로 바꾸고 삭제하지 않는다")
+    void deactivateWarehouse_keepsRecord() {
+        given(domainValidator.getOwnedWarehouse(1L, 1L)).willReturn(warehouse);
+
+        warehouseService.deactivateWarehouse(1L, 1L);
+
+        assertThat(warehouse.isActive()).isFalse();
+        then(warehouseRepository).should(never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("창고 비활성화 실패 - 소유자 아님")
+    void deactivateWarehouse_notOwner() {
+        given(domainValidator.getOwnedWarehouse(2L, 1L))
+                .willThrow(new ImsException(ErrorCode.WAREHOUSE_NOT_OWNED));
+
+        assertThatThrownBy(() -> warehouseService.deactivateWarehouse(2L, 1L))
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WAREHOUSE_NOT_OWNED);
+    }
+
+    @Test
+    @DisplayName("창고 재활성화 - 비활성 창고를 다시 활성화한다")
+    void activateWarehouse_reopens() {
+        warehouse.deactivate();
+        given(domainValidator.getOwnedWarehouse(1L, 1L)).willReturn(warehouse);
+
+        warehouseService.activateWarehouse(1L, 1L);
+
+        assertThat(warehouse.isActive()).isTrue();
+    }
+
+    @Test
+    @DisplayName("창고 목록 조회 - 비활성 창고는 제외한다")
+    void getWarehouses_excludesInactive() {
+        // 비활성 창고가 목록에 남으면 닫은 의미가 없다
+        given(warehouseRepository.findAllByOwnerIdAndActiveTrue(1L)).willReturn(List.of(warehouse));
+
+        List<WarehouseResponse> result = warehouseService.getWarehouses(1L);
+
+        assertThat(result).hasSize(1);
+        then(warehouseRepository).should(never()).findAllByOwnerId(any());
     }
 }

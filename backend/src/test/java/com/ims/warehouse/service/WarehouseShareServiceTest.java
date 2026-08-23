@@ -262,4 +262,67 @@ class WarehouseShareServiceTest {
         // when & then: FULL 권한자는 예외 없이 통과
         assertThatNoException().isThrownBy(() -> warehouseShareService.checkFullAccess(2L, 1L));
     }
+
+    // ===================== 비활성 창고 =====================
+    // 비활성 창고는 목록과 쓰기에서 빠진다. 다만 과거 이력은 계속 볼 수 있어야 하므로
+    // 조회 권한(checkViewAccess)은 통과시킨다.
+
+    @Test
+    @DisplayName("쓰기 권한 - 비활성 창고는 소유자도 거부된다")
+    void checkFullAccess_inactiveWarehouse_denied() {
+        warehouse.deactivate();
+        given(warehouseRepository.findById(warehouse.getId())).willReturn(Optional.of(warehouse));
+
+        assertThatThrownBy(() -> warehouseShareService.checkFullAccess(owner.getId(), warehouse.getId()))
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WAREHOUSE_INACTIVE);
+    }
+
+    @Test
+    @DisplayName("조회 권한 - 비활성 창고도 과거 이력 조회는 가능하다")
+    void checkViewAccess_inactiveWarehouse_allowed() {
+        // 닫았다고 지난 데이터가 안 보이면 소프트 삭제의 의미가 없다
+        warehouse.deactivate();
+        given(warehouseRepository.findById(warehouse.getId())).willReturn(Optional.of(warehouse));
+
+        Warehouse result = warehouseShareService.checkViewAccess(owner.getId(), warehouse.getId());
+
+        assertThat(result.isActive()).isFalse();
+    }
+
+    @Test
+    @DisplayName("접근 가능 창고 ID - 비활성 창고는 제외한다")
+    void getAccessibleWarehouseIds_excludesInactive() {
+        given(warehouseRepository.findAllByOwnerIdAndActiveTrue(owner.getId())).willReturn(List.of(warehouse));
+        given(warehouseShareRepository.findAllBySharedWithId(owner.getId())).willReturn(List.of());
+
+        List<Long> result = warehouseShareService.getAccessibleWarehouseIds(owner.getId());
+
+        assertThat(result).containsExactly(warehouse.getId());
+        then(warehouseRepository).should(never()).findAllByOwnerId(any());
+    }
+
+    @Test
+    @DisplayName("공유받은 창고 목록 - 소유자가 비활성화한 창고는 제외한다")
+    void getSharedWarehouses_excludesInactive() {
+        // 남이 비활성화한 창고가 내 공유 목록에 남으면 클릭했을 때 쓰기가 막혀 혼란스럽다
+        Warehouse closed = Warehouse.builder()
+                .id(99L).owner(owner).name("닫은창고").build();
+        closed.deactivate();
+
+        WarehouseShare activeShare = WarehouseShare.builder()
+                .id(1L).warehouse(warehouse).sharedWith(target)
+                .permission(SharePermission.VIEW).build();
+        WarehouseShare closedShare = WarehouseShare.builder()
+                .id(2L).warehouse(closed).sharedWith(target)
+                .permission(SharePermission.VIEW).build();
+
+        given(warehouseShareRepository.findAllBySharedWithId(target.getId()))
+                .willReturn(List.of(activeShare, closedShare));
+
+        List<WarehouseShareResponse> result = warehouseShareService.getSharedWarehouses(target.getId());
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).warehouseId()).isEqualTo(warehouse.getId());
+    }
 }

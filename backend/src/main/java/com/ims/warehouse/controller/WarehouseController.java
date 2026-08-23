@@ -63,6 +63,34 @@ public class WarehouseController {
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
+    /** 비활성 창고 목록 — 활성화용 */
+    @GetMapping("/inactive")
+    public ResponseEntity<ApiResponse<List<WarehouseResponse>>> getInactive(
+            @AuthenticationPrincipal Long userId
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(warehouseService.getInactiveWarehouses(userId)));
+    }
+
+    /** 창고 비활성화 (소프트 삭제) — 목록·쓰기에서 제외하고 이력은 보존한다 */
+    @PatchMapping("/{warehouseId}/deactivate")
+    public ResponseEntity<ApiResponse<Void>> deactivate(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long warehouseId
+    ) {
+        warehouseService.deactivateWarehouse(userId, warehouseId);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    /** 비활성 창고 활성화 */
+    @PatchMapping("/{warehouseId}/activate")
+    public ResponseEntity<ApiResponse<Void>> activate(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long warehouseId
+    ) {
+        warehouseService.activateWarehouse(userId, warehouseId);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
     /** 창고 공유 부여 */
     @PostMapping("/{warehouseId}/shares")
     public ResponseEntity<ApiResponse<WarehouseShareResponse>> share(

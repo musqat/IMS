@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useWarehouses, useSharedWarehouses } from '@/hooks/queries/useWarehouses';
 import { WarehouseCard } from '@/components/warehouse/WarehouseCard';
 import { ShareDialog } from '@/components/warehouse/ShareDialog';
+import { InactiveWarehouseSection } from '@/components/warehouse/InactiveWarehouseSection';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -102,7 +103,8 @@ export default function WarehousesPage() {
             {shared.map((s) => (
               <WarehouseCard
                 key={s.id}
-                warehouse={{ id: s.warehouseId, name: s.warehouseName, location: s.warehouseLocation, ownerId: s.ownerId, ownerCompanyName: s.ownerCompanyName, createdAt: '' }}
+                // 백엔드가 비활성 창고를 공유 목록에서 이미 제외한다
+                warehouse={{ id: s.warehouseId, name: s.warehouseName, location: s.warehouseLocation, ownerId: s.ownerId, ownerCompanyName: s.ownerCompanyName, active: true, createdAt: '' }}
                 isOwner={false}
                 permission={s.permission}
               />
@@ -110,6 +112,8 @@ export default function WarehousesPage() {
           </div>
         )}
       </section>
+
+      <InactiveWarehouseSection />
 
       <CreateWarehouseDialog open={createOpen} onClose={() => setCreateOpen(false)} />
       {shareTarget && (
