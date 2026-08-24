@@ -54,9 +54,11 @@ class BomControllerTest {
     @Test
     @DisplayName("BOM 등록 성공")
     void addBom_success() throws Exception {
+        // given
         BomCreateRequest request = new BomCreateRequest(1L, 2);
         given(bomService.addBom(1L, 1L, request)).willReturn(bomResponse());
 
+        // when & then
         mockMvc.perform(post("/api/v1/items/{parentItemId}/bom", 1)
                         .with(authentication(auth()))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -69,9 +71,11 @@ class BomControllerTest {
     @Test
     @DisplayName("BOM 등록 실패 - 순환 참조")
     void addBom_circularReference() throws Exception {
+        // given
         BomCreateRequest request = new BomCreateRequest(1L, 2);
         given(bomService.addBom(1L, 1L, request)).willThrow(new ImsException(ErrorCode.BOM_CIRCULAR_REFERENCE));
 
+        // when & then
         mockMvc.perform(post("/api/v1/items/{parentItemId}/bom", 1)
                         .with(authentication(auth()))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -82,9 +86,11 @@ class BomControllerTest {
     @Test
     @DisplayName("BOM 목록 조회 성공")
     void getBoms_success() throws Exception {
+        // given
         BomResponse response = new BomResponse(10L, 1L, "A", "완성품A", 2L, "B", "반제품B", 2);
         given(bomService.getBoms(1L, 1L)).willReturn(List.of(response));
 
+        // when & then
         mockMvc.perform(get("/api/v1/items/1/bom")
                         .with(authentication(auth())))
                 .andExpect(status().isOk())

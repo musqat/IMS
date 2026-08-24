@@ -263,34 +263,42 @@ class InventoryServiceTest {
     @Test
     @DisplayName("최대 생산 가능 수량 - BOM 없으면 null (제약 없음)")
     void calcMaxProducible_noBom() {
+        // given
         given(warehouseShareService.checkViewAccess(owner.getId(), warehouse.getId())).willReturn(warehouse);
         given(domainValidator.getOwnedItem(owner.getId(), itemBike.getId())).willReturn(itemBike);
         given(bomService.getFullBomTree(itemBike.getId(), owner.getId())).willReturn(Map.of());
 
+        // when
         MaxProducibleResponse result = inventoryService.calcMaxProducible(owner.getId(), warehouse.getId(), itemBike.getId());
 
+        // then
         assertThat(result.maxQuantity()).isNull();
     }
 
     @Test
     @DisplayName("안전재고 수정 성공")
     void updateSafetyStock_success() {
+        // given
         SafetyStockUpdateRequest request = new SafetyStockUpdateRequest(30);
         given(inventoryRepository.findByWarehouseIdAndItemIdForUpdate(warehouse.getId(), itemBike.getId()))
                 .willReturn(Optional.of(inventory));
 
+        // when
         InventoryResponse result = inventoryService.updateSafetyStock(owner.getId(), warehouse.getId(), itemBike.getId(), request);
 
+        // then
         assertThat(result.safetyStock()).isEqualTo(30);
     }
 
     @Test
     @DisplayName("안전재고 수정 실패 - 쓰기 권한 없음")
     void updateSafetyStock_notOwner() {
+        // given
         SafetyStockUpdateRequest request = new SafetyStockUpdateRequest(30);
         willThrow(new ImsException(ErrorCode.WAREHOUSE_ACCESS_DENIED))
                 .given(warehouseShareService).checkFullAccess(999L, warehouse.getId());
 
+        // when & then
         assertThatThrownBy(() -> inventoryService.updateSafetyStock(999L, warehouse.getId(), itemBike.getId(), request))
                 .isInstanceOf(ImsException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WAREHOUSE_ACCESS_DENIED);
@@ -299,6 +307,7 @@ class InventoryServiceTest {
     @Test
     @DisplayName("입출고 이력 조회 성공")
     void getHistory_success() {
+        // given
         InventoryHistory history = InventoryHistory.builder()
                 .id(1L).inventory(inventory).type(InventoryHistoryType.IN).delta(50).memo("입고").build();
         given(warehouseShareService.checkViewAccess(owner.getId(), warehouse.getId())).willReturn(warehouse);
@@ -307,8 +316,10 @@ class InventoryServiceTest {
         given(inventoryHistoryRepository.findAllByInventoryId(eq(inventory.getId()), any()))
                 .willReturn(new PageImpl<>(List.of(history)));
 
+        // when
         Page<?> result = inventoryService.getHistory(owner.getId(), warehouse.getId(), itemBike.getId(), PageRequest.of(0, 10));
 
+        // then
         assertThat(result.getContent()).hasSize(1);
     }
 
@@ -510,12 +521,15 @@ class InventoryServiceTest {
     @Test
     @DisplayName("출고 - 소유자 전용이 아니라 FULL 권한 검증을 사용한다")
     void adjustOut_usesFullAccessCheck() {
+        // given
         OutboundRequest request = new OutboundRequest(10, null);
         given(inventoryRepository.findByWarehouseIdAndItemIdForUpdate(warehouse.getId(), itemBike.getId()))
                 .willReturn(Optional.of(inventory));
 
+        // when
         inventoryService.adjustOut(owner.getId(), warehouse.getId(), itemBike.getId(), request);
 
+        // then
         then(warehouseShareService).should().checkFullAccess(owner.getId(), warehouse.getId());
         then(domainValidator).should(never()).getOwnedWarehouse(any(), any());
     }
@@ -523,12 +537,15 @@ class InventoryServiceTest {
     @Test
     @DisplayName("재고 보정 - 소유자 전용이 아니라 FULL 권한 검증을 사용한다")
     void adjust_usesFullAccessCheck() {
+        // given
         AdjustRequest request = new AdjustRequest(80, null);
         given(inventoryRepository.findByWarehouseIdAndItemIdForUpdate(warehouse.getId(), itemBike.getId()))
                 .willReturn(Optional.of(inventory));
 
+        // when
         inventoryService.adjust(owner.getId(), warehouse.getId(), itemBike.getId(), request);
 
+        // then
         then(warehouseShareService).should().checkFullAccess(owner.getId(), warehouse.getId());
         then(domainValidator).should(never()).getOwnedWarehouse(any(), any());
     }
@@ -536,12 +553,15 @@ class InventoryServiceTest {
     @Test
     @DisplayName("안전재고 수정 - 소유자 전용이 아니라 FULL 권한 검증을 사용한다")
     void updateSafetyStock_usesFullAccessCheck() {
+        // given
         given(inventoryRepository.findByWarehouseIdAndItemIdForUpdate(warehouse.getId(), itemBike.getId()))
                 .willReturn(Optional.of(inventory));
 
+        // when
         inventoryService.updateSafetyStock(
                 owner.getId(), warehouse.getId(), itemBike.getId(), new SafetyStockUpdateRequest(20));
 
+        // then
         then(warehouseShareService).should().checkFullAccess(owner.getId(), warehouse.getId());
         then(domainValidator).should(never()).getOwnedWarehouse(any(), any());
     }
