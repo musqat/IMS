@@ -1,12 +1,14 @@
 # IMS — Inventory Management System
 
-> 제조업 본사-하청 협업을 위한 BOM 기반 재고관리 시스템
+[![CI](https://github.com/musqat/IMS/actions/workflows/ci.yml/badge.svg)](https://github.com/musqat/IMS/actions/workflows/ci.yml)
+
+> 제조업 파트너사 협업을 위한 BOM 기반 재고관리 시스템
 
 ![IMS Demo](docs/demo.gif)
 
 ## Overview
 
-본사-하청 간 재고 협업은 ERP 도입 후에도 엑셀로 처리되는 경우가 많습니다. 협력사마다 재고 기준이 달라 생산 계획이 어긋나고, 부품 부족은 결산 후에야 드러납니다.
+파트너사 간 재고 협업은 ERP 도입 후에도 엑셀로 처리되는 경우가 많습니다. 협력사마다 재고 기준이 달라 생산 계획이 어긋나고, 부품 부족은 결산 후에야 드러납니다.
 
 IMS는 회사 단위 계정과 초대 기반 Partnership으로 협력사를 연결합니다. 창고 공유 권한(VIEW/FULL), BOM 기반 최대 생산량 자동 계산, 자정 배치 결산까지 하나의 시스템에서 처리합니다.
 
@@ -17,11 +19,11 @@ IMS는 회사 단위 계정과 초대 기반 Partnership으로 협력사를 연�
 
 | 계정 | 회사 | 역할 |
 |------|------|------|
-| `a@ims.dev` | 아이테크조립(주) | **메인 데모 계정** — 본사 E의 하청이자 B·C의 본사 |
-| `b@ims.dev` | 비전전자(주) | A의 하청 (전자부품) |
-| `c@ims.dev` | 씨메카닉스(주) | A의 하청 (기계부품) |
+| `a@ims.dev` | 아이테크조립(주) | **메인 데모 계정** — E가 초대했고, B·C를 초대했다 |
+| `b@ims.dev` | 비전전자(주) | A가 초대 (전자부품) |
+| `c@ims.dev` | 씨메카닉스(주) | A가 초대 (기계부품) |
 | `d@ims.dev` | 디로지스(주) | 초대 대기(PENDING) 상태 확인용 |
-| `e@ims.dev` | 이스마트코리아(주) | A의 본사 |
+| `e@ims.dev` | 이스마트코리아(주) | A를 초대 |
 
 비밀번호는 공통 `Test1234!` 입니다. 최근 90일치 데모 데이터(생산 75건, 결산 70건)가 적재되어 있어 분석·결산 화면을 바로 확인할 수 있습니다.
 
@@ -87,7 +89,7 @@ IMS는 회사 단위 계정과 초대 기반 Partnership으로 협력사를 연�
 
 ### 회사 간 협력 구조 (Partnership)
 
-각 회사가 독립 계정으로 가입 후, 초대 토큰 방식으로 본사-하청 관계를 맺습니다.
+각 회사가 독립 계정으로 가입 후, 초대로 파트너 관계를 맺습니다.
 
 ```
 이스마트코리아(E) ──[ACCEPTED]──▶ 아이테크조립(A) ──[ACCEPTED]──▶ 비전전자(B)
@@ -97,9 +99,11 @@ IMS는 회사 단위 계정과 초대 기반 Partnership으로 협력사를 연�
                                         └──[PENDING] ──▶ 디로지스(D)  ← 초대 대기 중
 ```
 
-- 하청은 여러 본사에 동시 소속 가능 (다중 Partnership)
+- 한 회사가 여러 파트너를 동시에 가질 수 있습니다 (다중 Partnership)
 - 창고 공유(WarehouseShare)는 ACCEPTED 관계인 파트너에게만 부여 가능
 - 공유 권한: `VIEW` (조회만) / `FULL` (입출고 포함)
+- 화살표는 초대 방향입니다. 관계가 맺어진 뒤로는 두 회사가 대등합니다 —
+  창고 공유 판정이 양방향이고 권한은 소유자·FULL·VIEW로만 갈립니다
 
 ### BOM 기반 생산 계획
 
@@ -215,7 +219,7 @@ IMS/
 ├── backend/
 │   ├── src/main/java/com/ims/
 │   │   ├── user/            # 회사 계정 관리, JWT 인증
-│   │   ├── partnership/     # 본사-하청 초대 · 수락 · 관리
+│   │   ├── partnership/     # 파트너 초대 · 수락 · 관리
 │   │   ├── warehouse/       # 창고 CRUD, 공유 권한(WarehouseShare)
 │   │   ├── item/            # 품목 마스터 (PRODUCT · PART · SEMI)
 │   │   ├── inventory/       # 창고별 실시간 재고, 입출고 이력
