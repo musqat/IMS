@@ -34,7 +34,7 @@ export function ProductionEditDialog({ open, onClose, record }: Props) {
 
   useEffect(() => {
     if (open) reset({ quantity: record.quantity });
-  }, [open, record.id, record.quantity]);
+  }, [open, record.id, record.quantity, reset]);
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: (quantity: number) => productionApi.update(record.warehouseId, record.id, quantity),

@@ -83,6 +83,15 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      # 경고를 통과시키면 아무것도 안 잡는다. 0으로 막는다
+      - name: 린트
+        working-directory: frontend
+        run: npx next lint --max-warnings=0
+
+      - name: 단위 테스트
+        working-directory: frontend
+        run: npm test
+
       # next build가 tsc를 포함한다. 타입 오류도 여기서 잡힌다
       - name: 빌드
         working-directory: frontend
