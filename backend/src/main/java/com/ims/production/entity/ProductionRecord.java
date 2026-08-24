@@ -1,15 +1,12 @@
 package com.ims.production.entity;
 
+import com.ims.global.common.BaseTimeEntity;
 import com.ims.global.exception.ErrorCode;
 import com.ims.global.exception.ImsException;
 import com.ims.item.entity.Item;
 import com.ims.warehouse.entity.Warehouse;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "production_records")
@@ -17,8 +14,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-@EntityListeners(AuditingEntityListener.class)
-public class ProductionRecord {
+public class ProductionRecord extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,9 +34,6 @@ public class ProductionRecord {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ProductionStatus status;
-
-    @CreatedDate
-    private LocalDateTime createdAt;
 
     /**
      * 생산 수량 수정
