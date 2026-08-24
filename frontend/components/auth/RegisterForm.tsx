@@ -8,11 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { passwordField } from '@/lib/validation/password';
 
 const schema = z.object({
   companyName: z.string().min(1, '회사명을 입력하세요'),
   email: z.string().email('올바른 이메일을 입력하세요'),
-  password: z.string().min(6, '비밀번호는 6자 이상이어야 합니다'),
+  password: passwordField,
 });
 type FormData = z.infer<typeof schema>;
 
@@ -65,7 +66,7 @@ export function RegisterForm() {
         <Input
           id="password"
           type="password"
-          placeholder="6자 이상"
+          placeholder="8자 이상, 영문+숫자"
           {...register('password')}
         />
         {errors.password && (

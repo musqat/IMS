@@ -50,7 +50,7 @@ class UserControllerTest {
     @Test
     @DisplayName("회원가입 성공 — 201 + 토큰 즉시 반환")
     void register_success() throws Exception {
-        RegisterRequest request = new RegisterRequest("test@test.com", "password", "테스트회사");
+        RegisterRequest request = new RegisterRequest("test@test.com", "password1", "테스트회사");
         given(userService.signUp(any())).willReturn(new LoginResponse("accessToken", "refreshToken"));
 
         mockMvc.perform(post("/api/v1/users/register")
@@ -64,7 +64,7 @@ class UserControllerTest {
     @Test
     @DisplayName("회원가입 실패 - 입력값 오류")
     void register_invalidInput() throws Exception {
-        RegisterRequest request = new RegisterRequest("", "password", "테스트회사");
+        RegisterRequest request = new RegisterRequest("", "password1", "테스트회사");
 
         mockMvc.perform(post("/api/v1/users/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -75,7 +75,7 @@ class UserControllerTest {
     @Test
     @DisplayName("회원가입 실패 - 이메일 중복")
     void register_duplicateEmail() throws Exception {
-        RegisterRequest request = new RegisterRequest("test@test.com", "password", "테스트회사");
+        RegisterRequest request = new RegisterRequest("test@test.com", "password1", "테스트회사");
         given(userService.signUp(any())).willThrow(new ImsException(ErrorCode.DUPLICATE_EMAIL));
 
         mockMvc.perform(post("/api/v1/users/register")
@@ -202,5 +202,31 @@ class UserControllerTest {
                 id, null,
                 List.of(new SimpleGrantedAuthority("ROLE_USER"))
         );
+    }
+
+    @Test
+    @DisplayName("회원가입 실패 - 비밀번호에 숫자가 없다")
+    void register_passwordWithoutDigit() throws Exception {
+        // given - 8자를 넘겨도 영문뿐이면 통과시키지 않는다
+        RegisterRequest request = new RegisterRequest("test@test.com", "passwordonly", "테스트회사");
+
+        // when & then
+        mockMvc.perform(post("/api/v1/users/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("회원가입 실패 - 비밀번호가 8자 미만")
+    void register_passwordTooShort() throws Exception {
+        // given - 영문·숫자를 섞어도 길이가 모자라면 막는다
+        RegisterRequest request = new RegisterRequest("test@test.com", "pass1", "테스트회사");
+
+        // when & then
+        mockMvc.perform(post("/api/v1/users/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
     }
 }
