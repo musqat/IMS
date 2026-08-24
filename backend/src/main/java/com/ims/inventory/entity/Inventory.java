@@ -1,16 +1,12 @@
 package com.ims.inventory.entity;
 
+import com.ims.global.common.BaseTimeEntity;
 import com.ims.global.exception.ErrorCode;
 import com.ims.global.exception.ImsException;
 import com.ims.item.entity.Item;
 import com.ims.warehouse.entity.Warehouse;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Table(
@@ -21,8 +17,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-@EntityListeners(AuditingEntityListener.class)
-public class Inventory {
+public class Inventory extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -41,12 +36,6 @@ public class Inventory {
 
     @Column(nullable = false)
     private int safetyStock;
-
-    @CreatedDate
-    private LocalDateTime createdAt;
-
-    @LastModifiedDate
-    private LocalDateTime updatedAt;
 
     /** 입고: quantity += qty */
     public void add(int qty) {

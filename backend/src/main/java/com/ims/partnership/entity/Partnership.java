@@ -1,10 +1,9 @@
 package com.ims.partnership.entity;
 
+import com.ims.global.common.BaseTimeEntity;
 import com.ims.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
@@ -15,8 +14,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-@EntityListeners(AuditingEntityListener.class)
-public class Partnership {
+public class Partnership extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -54,9 +52,6 @@ public class Partnership {
 
     @Column
     private String alias;
-
-    @CreatedDate
-    private LocalDateTime createdAt;
 
     private LocalDateTime acceptedAt;
 

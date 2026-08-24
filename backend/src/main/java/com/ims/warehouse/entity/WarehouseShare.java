@@ -1,12 +1,9 @@
 package com.ims.warehouse.entity;
 
+import com.ims.global.common.BaseTimeEntity;
 import com.ims.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "warehouse_shares",
@@ -15,8 +12,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-@EntityListeners(AuditingEntityListener.class)
-public class WarehouseShare {
+public class WarehouseShare extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,9 +29,6 @@ public class WarehouseShare {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private SharePermission permission;
-
-    @CreatedDate
-    private LocalDateTime createdAt;
 
     public enum SharePermission {
         VIEW, FULL
