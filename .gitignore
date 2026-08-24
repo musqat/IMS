@@ -26,3 +26,9 @@ backend/test-output.txt
 .agents/
 skills-lock.json
 docs/superpowers/
+
+# Playwright
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+frontend/.playwright/
