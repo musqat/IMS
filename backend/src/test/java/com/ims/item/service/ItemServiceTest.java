@@ -87,10 +87,12 @@ class ItemServiceTest {
     @Test
     @DisplayName("품목 생성 실패 - 중복 itemCode")
     void createItem_duplicateCode() {
+        // given
         ItemCreateRequest request = new ItemCreateRequest("ITEM-001", "테스트 품목", ItemType.PRODUCT, null);
         given(userRepository.findById(1L)).willReturn(Optional.of(owner));
         given(itemRepository.existsByOwnerIdAndItemCode(1L, "ITEM-001")).willReturn(true);
 
+        // when & then
         assertThatThrownBy(() -> itemService.createItem(1L, request))
                 .isInstanceOf(ImsException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.DUPLICATE_ITEM_CODE);
@@ -99,9 +101,11 @@ class ItemServiceTest {
     @Test
     @DisplayName("품목 생성 실패 - 존재하지 않는 User")
     void createItem_userNotFound() {
+        // given
         ItemCreateRequest request = new ItemCreateRequest("ITEM-001", "테스트 품목", ItemType.PRODUCT, null);
         given(userRepository.findById(1L)).willReturn(Optional.empty());
 
+        // when & then
         assertThatThrownBy(() -> itemService.createItem(1L, request))
                 .isInstanceOf(ImsException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_NOT_FOUND);
@@ -110,10 +114,13 @@ class ItemServiceTest {
     @Test
     @DisplayName("내 회사 품목 전체 조회 성공")
     void getItems_success() {
+        // given
         given(itemRepository.findAllByOwnerId(1L)).willReturn(List.of(item));
 
+        // when
         List<ItemResponse> result = itemService.getItems(1L);
 
+        // then
         assertThat(result).hasSize(1);
         assertThat(result.getFirst().itemCode()).isEqualTo("ITEM-001");
     }
@@ -121,10 +128,13 @@ class ItemServiceTest {
     @Test
     @DisplayName("품목 단건 조회 성공")
     void getItem_success() {
+        // given
         given(domainValidator.getOwnedItem(1L, 1L)).willReturn(item);
 
+        // when
         ItemResponse result = itemService.getItem(1L, 1L);
 
+        // then
         assertThat(result.itemCode()).isEqualTo("ITEM-001");
         assertThat(result.name()).isEqualTo("테스트 품목");
     }
@@ -132,8 +142,10 @@ class ItemServiceTest {
     @Test
     @DisplayName("품목 단건 조회 실패 - 다른 소유자")
     void getItem_notOwner() {
+        // given
         given(domainValidator.getOwnedItem(2L, 1L)).willThrow(new ImsException(ErrorCode.ITEM_NOT_OWNED));
 
+        // when & then
         assertThatThrownBy(() -> itemService.getItem(2L, 1L))
                 .isInstanceOf(ImsException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ITEM_NOT_OWNED);
@@ -142,20 +154,25 @@ class ItemServiceTest {
     @Test
     @DisplayName("품목 삭제 성공")
     void deleteItem_success() {
+        // given
         given(domainValidator.getOwnedItem(1L, 1L)).willReturn(item);
         given(bomRepository.existsByParentId(1L)).willReturn(false);
         given(bomRepository.existsByChildId(1L)).willReturn(false);
 
+        // when
         itemService.deleteItem(1L, 1L);
 
+        // then
         then(itemRepository).should().delete(item);
     }
 
     @Test
     @DisplayName("품목 삭제 실패 - 소유자 아님")
     void deleteItem_notOwner() {
+        // given
         given(domainValidator.getOwnedItem(2L, 1L)).willThrow(new ImsException(ErrorCode.ITEM_NOT_OWNED));
 
+        // when & then
         assertThatThrownBy(() -> itemService.deleteItem(2L, 1L))
                 .isInstanceOf(ImsException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ITEM_NOT_OWNED);
@@ -164,9 +181,11 @@ class ItemServiceTest {
     @Test
     @DisplayName("품목 삭제 실패 - BOM에 등록된 품목")
     void deleteItem_bomInUse() {
+        // given
         given(domainValidator.getOwnedItem(1L, 1L)).willReturn(item);
         given(bomRepository.existsByParentId(1L)).willReturn(true);
 
+        // when & then
         assertThatThrownBy(() -> itemService.deleteItem(1L, 1L))
                 .isInstanceOf(ImsException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ITEM_IN_USE_BY_BOM);

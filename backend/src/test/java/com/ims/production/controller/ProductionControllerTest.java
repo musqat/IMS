@@ -111,8 +111,10 @@ class ProductionControllerTest {
     @Test
     @DisplayName("생산 기록 수정 성공 - 200 OK")
     void updateRecord_success() throws Exception {
+        // given
         given(productionService.updateRecord(eq(1L), eq(1L), eq(1L), any())).willReturn(productionResponse());
 
+        // when & then
         mockMvc.perform(patch("/api/v1/warehouses/1/productions/1")
                         .with(authentication(auth(1L)))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -123,8 +125,10 @@ class ProductionControllerTest {
     @Test
     @DisplayName("강제 결산 성공 - 200 OK")
     void forceSettle_success() throws Exception {
+        // given
         given(productionService.forceSettle(eq(1L), eq(1L), eq(1L))).willReturn(settledResponse());
 
+        // when & then
         mockMvc.perform(post("/api/v1/warehouses/1/productions/1/settle")
                         .with(authentication(auth(1L))))
                 .andExpect(status().isOk())
@@ -134,8 +138,10 @@ class ProductionControllerTest {
     @Test
     @DisplayName("결산 수정 성공 - 200 OK")
     void updateSettlement_success() throws Exception {
+        // given
         given(productionService.updateSettlement(eq(1L), eq(1L), eq(1L), any())).willReturn(settledResponse());
 
+        // when & then
         mockMvc.perform(patch("/api/v1/warehouses/1/productions/1/settlement")
                         .with(authentication(auth(1L)))
                         .contentType(MediaType.APPLICATION_JSON)

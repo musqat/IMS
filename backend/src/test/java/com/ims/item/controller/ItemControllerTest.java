@@ -55,9 +55,11 @@ class ItemControllerTest {
     @Test
     @DisplayName("품목 생성 성공")
     void createItem_success() throws Exception {
+        // given
         ItemCreateRequest request = new ItemCreateRequest("ITEM-001", "테스트 품목", ItemType.PRODUCT, null);
         given(itemService.createItem(eq(1L), any())).willReturn(itemResponse());
 
+        // when & then
         mockMvc.perform(post("/api/v1/items")
                         .with(authentication(auth()))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -71,9 +73,11 @@ class ItemControllerTest {
     @Test
     @DisplayName("품목 생성 실패 - 중복 itemCode")
     void createItem_duplicateCode() throws Exception {
+        // given
         ItemCreateRequest request = new ItemCreateRequest("ITEM-001", "테스트 품목", ItemType.PRODUCT, null);
         given(itemService.createItem(eq(1L), any())).willThrow(new ImsException(ErrorCode.DUPLICATE_ITEM_CODE));
 
+        // when & then
         mockMvc.perform(post("/api/v1/items")
                         .with(authentication(auth()))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -84,9 +88,11 @@ class ItemControllerTest {
     @Test
     @DisplayName("품목 목록 조회 성공")
     void getItems_success() throws Exception {
+        // given
         ItemResponse response = new ItemResponse(1L, "ITEM-001", "테스트 품목", ItemType.PRODUCT, null);
         given(itemService.getItems(1L)).willReturn(List.of(response));
 
+        // when & then
         mockMvc.perform(get("/api/v1/items")
                         .with(authentication(auth())))
                 .andExpect(status().isOk())
@@ -96,9 +102,11 @@ class ItemControllerTest {
     @Test
     @DisplayName("품목 단건 조회 성공")
     void getItem_success() throws Exception {
+        // given
         ItemResponse response = new ItemResponse(1L, "ITEM-001", "테스트 품목", ItemType.PRODUCT, null);
         given(itemService.getItem(1L, 1L)).willReturn(response);
 
+        // when & then
         mockMvc.perform(get("/api/v1/items/1")
                         .with(authentication(auth())))
                 .andExpect(status().isOk())
@@ -108,8 +116,10 @@ class ItemControllerTest {
     @Test
     @DisplayName("품목 단건 조회 실패 - 소유자 아님")
     void getItem_notOwner() throws Exception {
+        // given
         given(itemService.getItem(1L, 1L)).willThrow(new ImsException(ErrorCode.ITEM_NOT_OWNED));
 
+        // when & then
         mockMvc.perform(get("/api/v1/items/1")
                         .with(authentication(auth())))
                 .andExpect(status().isForbidden());

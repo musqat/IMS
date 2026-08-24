@@ -64,8 +64,10 @@ class WarehouseControllerTest {
     @Test
     @DisplayName("창고 생성 성공")
     void create_success() throws Exception {
+        // given
         given(warehouseService.createWarehouse(eq(1L), any())).willReturn(warehouseResponse());
 
+        // when & then
         mockMvc.perform(post("/api/v1/warehouses")
                         .with(authentication(auth(1L)))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -87,8 +89,10 @@ class WarehouseControllerTest {
     @Test
     @DisplayName("창고 목록 조회 성공")
     void getList_success() throws Exception {
+        // given
         given(warehouseService.getWarehouses(1L)).willReturn(List.of(warehouseResponse()));
 
+        // when & then
         mockMvc.perform(get("/api/v1/warehouses")
                         .with(authentication(auth(1L))))
                 .andExpect(status().isOk())
@@ -98,8 +102,10 @@ class WarehouseControllerTest {
     @Test
     @DisplayName("창고 단건 조회 성공")
     void getOne_success() throws Exception {
+        // given
         given(warehouseService.getWarehouse(1L, 1L)).willReturn(warehouseResponse());
 
+        // when & then
         mockMvc.perform(get("/api/v1/warehouses/1")
                         .with(authentication(auth(1L))))
                 .andExpect(status().isOk())
@@ -119,9 +125,11 @@ class WarehouseControllerTest {
     @Test
     @DisplayName("창고 삭제 실패 - 소유자 아님")
     void delete_notOwner() throws Exception {
+        // given
         willThrow(new ImsException(ErrorCode.WAREHOUSE_NOT_OWNED))
                 .given(warehouseService).deleteWarehouse(2L, 1L);
 
+        // when & then
         mockMvc.perform(delete("/api/v1/warehouses/1")
                         .with(authentication(auth(2L))))
                 .andExpect(status().isForbidden());
@@ -130,9 +138,11 @@ class WarehouseControllerTest {
     @Test
     @DisplayName("창고 공유 성공")
     void share_success() throws Exception {
+        // given
         WarehouseShareResponse response = new WarehouseShareResponse(1L, 1L, "서울 창고", "서울시 강남구",1L ,"하청", 1L, "테스트회사 ","VIEW");
         given(warehouseShareService.share(eq(1L), eq(1L), any())).willReturn(response);
 
+        // when & then
         mockMvc.perform(post("/api/v1/warehouses/1/shares")
                         .with(authentication(auth(1L)))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -144,9 +154,11 @@ class WarehouseControllerTest {
     @Test
     @DisplayName("창고 공유 실패 - Partnership 관계 없음")
     void share_notPartner() throws Exception {
+        // given
         given(warehouseShareService.share(eq(1L), eq(1L), any()))
                 .willThrow(new ImsException(ErrorCode.NOT_PARTNER));
 
+        // when & then
         mockMvc.perform(post("/api/v1/warehouses/1/shares")
                         .with(authentication(auth(1L)))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -168,9 +180,11 @@ class WarehouseControllerTest {
     @Test
     @DisplayName("공유받은 창고 목록 조회 성공")
     void getShared_success() throws Exception {
+        // given
         WarehouseShareResponse response = new WarehouseShareResponse(1L, 1L, "서울 창고", "서울시 강남구",1L ,"하청", 1L, "테스트회사 ","VIEW");
         given(warehouseShareService.getSharedWarehouses(2L)).willReturn(List.of(response));
 
+        // when & then
         mockMvc.perform(get("/api/v1/warehouses/shared")
                         .with(authentication(auth(2L))))
                 .andExpect(status().isOk())

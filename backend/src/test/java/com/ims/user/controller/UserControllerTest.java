@@ -50,9 +50,11 @@ class UserControllerTest {
     @Test
     @DisplayName("회원가입 성공 — 201 + 토큰 즉시 반환")
     void register_success() throws Exception {
+        // given
         RegisterRequest request = new RegisterRequest("test@test.com", "password1", "테스트회사");
         given(userService.signUp(any())).willReturn(new LoginResponse("accessToken", "refreshToken"));
 
+        // when & then
         mockMvc.perform(post("/api/v1/users/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -75,9 +77,11 @@ class UserControllerTest {
     @Test
     @DisplayName("회원가입 실패 - 이메일 중복")
     void register_duplicateEmail() throws Exception {
+        // given
         RegisterRequest request = new RegisterRequest("test@test.com", "password1", "테스트회사");
         given(userService.signUp(any())).willThrow(new ImsException(ErrorCode.DUPLICATE_EMAIL));
 
+        // when & then
         mockMvc.perform(post("/api/v1/users/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -87,9 +91,11 @@ class UserControllerTest {
     @Test
     @DisplayName("로그인 성공")
     void login_success() throws Exception {
+        // given
         LoginRequest request = new LoginRequest("test@test.com", "password");
         given(userService.login(any())).willReturn(new LoginResponse("accessToken", "refreshToken"));
 
+        // when & then
         mockMvc.perform(post("/api/v1/users/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -100,8 +106,10 @@ class UserControllerTest {
     @Test
     @DisplayName("토큰 재발급 성공 - Access/Refresh 모두 반환")
     void refresh_success() throws Exception {
+        // given
         given(userService.refresh(any())).willReturn(new LoginResponse("newAccessToken", "newRefreshToken"));
 
+        // when & then
         mockMvc.perform(post("/api/v1/users/refresh")
                         .header("Authorization", "Bearer token"))
                 .andExpect(status().isOk())
@@ -112,9 +120,11 @@ class UserControllerTest {
     @Test
     @DisplayName("내 프로필 조회 성공 - 200 OK")
     void getMe_success() throws Exception {
+        // given
         UserResponse response = new UserResponse(1L, "test@test.com", "테스트회사", "1000000001");
         given(userService.getMe(1L)).willReturn(response);
 
+        // when & then
         mockMvc.perform(get("/api/v1/users/me")
                         .with(authentication(auth(1L))))
                 .andExpect(status().isOk())
@@ -124,9 +134,11 @@ class UserControllerTest {
     @Test
     @DisplayName("회사명 수정 성공 - 200 OK")
     void updateCompanyName_success() throws Exception {
+        // given
         UserResponse response = new UserResponse(1L, "test@test.com", "신회사명", "1000000001");
         given(userService.updateCompanyName(eq(1L), eq("신회사명"))).willReturn(response);
 
+        // when & then
         mockMvc.perform(patch("/api/v1/users/me/company-name")
                         .with(authentication(auth(1L)))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -138,8 +150,10 @@ class UserControllerTest {
     @Test
     @DisplayName("비밀번호 변경 성공 - 200 OK")
     void updatePassword_success() throws Exception {
+        // given
         willDoNothing().given(userService).updatePassword(eq(1L), any(), any());
 
+        // when & then
         mockMvc.perform(patch("/api/v1/users/me/password")
                         .with(authentication(auth(1L)))
                         .contentType(MediaType.APPLICATION_JSON)
