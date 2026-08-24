@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { passwordField } from '@/lib/validation/password';
 
 const companySchema = z.object({
   companyName: z.string().min(1, '회사명을 입력하세요'),
@@ -18,7 +19,7 @@ const companySchema = z.object({
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, '현재 비밀번호를 입력하세요'),
-  newPassword: z.string().min(6, '비밀번호는 6자 이상이어야 합니다'),
+  newPassword: passwordField,
 });
 
 type CompanyForm = z.infer<typeof companySchema>;
