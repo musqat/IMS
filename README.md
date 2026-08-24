@@ -177,7 +177,8 @@ BOM 부품 재고는 단일 IN 쿼리로 일괄 조회하여 N+1 방지.
 
 ## 테스트 전략
 
-TDD로 개발. 총 **327개 테스트**, JaCoCo 기준 **라인 92.1% / 브랜치 84.3%**.
+TDD로 개발. 총 **396개 테스트** — 백엔드 327 · 프론트 단위 51 · E2E 18.
+백엔드는 JaCoCo 기준 **라인 92.1% / 브랜치 84.3%**
 
 <details>
 <summary><b>레이어별 테스트 구성과 커버리지 기준</b></summary>
@@ -191,14 +192,27 @@ TDD로 개발. 총 **327개 테스트**, JaCoCo 기준 **라인 92.1% / 브랜�
 | Repository 슬라이스 | @DataJpaTest | BOM 다단계 조회, 재고 집계 쿼리 |
 | 배치 통합 | @SpringBootTest | PENDING → SETTLED 전체 플로우, ANOMALY 처리 |
 | Security | Spring Security Test | JWT 필터 분기, 미인증 401, 권한 없음 403 |
+| 동시성 | 실제 PostgreSQL | 비관적 락, 동시 출고 시 lost update |
+| 프론트 단위 | Vitest | 날짜 변환, 조회 실패 판정, 캐시 키, 비밀번호 정책 |
+| 화면 흐름 | Playwright | 로그인·권한·공유 창고·초대 수락을 브라우저로 |
 
 ```bash
-./gradlew test jacocoTestReport   # 리포트: build/reports/jacoco/test/html/index.html
+./gradlew test jacocoTestReport   # 백엔드 + 커버리지 리포트
+npm test                          # 프론트 단위
+npm run e2e                       # 화면 흐름 (백엔드 실행 필요)
 ```
+
+프론트 테스트는 화면 개수가 아니라 **실제로 틀렸던 곳**을 기준으로 골랐습니다.
+`toISOString()`이 UTC라 날짜가 밀리던 것, 조회 실패가 "데이터 없음"으로 보이던 것,
+캐시 키에 `size`가 빠져 목록이 서로 덮어쓰던 것 — 전부 [문제 해결](docs/problem-solving.md)에
+기록된 결함입니다.
 
 커버리지 수치는 DTO · 엔티티 · 설정 클래스를 제외한 값입니다. 롬복이 생성하는 게터·빌더가
 포함되면 수치는 올라가지만 실제 로직의 검증 정도를 나타내지 못하기 때문입니다.
 `jacocoTestCoverageVerification`에 라인 90% / 브랜치 80% 하한선을 두어 회귀를 막습니다.
+
+세 가지 모두 CI에서 돌아갑니다. 커버리지 게이트와 린트도 같이 걸려 있어,
+수치가 내려가거나 경고가 하나라도 생기면 PR이 막힙니다.
 
 </details>
 
