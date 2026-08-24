@@ -30,9 +30,10 @@ spring:
     jdbc:
       initialize-schema: always
 
-  security:
-    user:
-      name: ignored
+  # 인증은 JwtAuthFilter가 전담한다.
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
 
 server:
   port: 8080
