@@ -16,9 +16,24 @@ interface Props {
 }
 
 export function WarehouseCard({ warehouse, isOwner, permission, onShare }: Props) {
-  const { mutate: deleteWarehouse } = useDeleteWarehouse();
   const { mutate: deactivateWarehouse } = useDeactivateWarehouse();
   const confirm = useConfirm();
+
+  // 삭제가 막히면 토스트로 끝내지 않고 비활성화를 제안한다.
+  const { mutate: deleteWarehouse } = useDeleteWarehouse({
+    onBlocked: async (code) => {
+      const reason = code === 'WAREHOUSE_HAS_INVENTORY' ? '재고가' : '생산 기록이';
+      const ok = await confirm({
+        title: `${reason} 남아 있어 삭제할 수 없습니다.`,
+        description: [
+          '대신 비활성화하면 목록에서 숨겨지고 입출고가 차단됩니다.',
+          '재고와 이력은 그대로 보존되며 언제든 다시 활성화할 수 있습니다.',
+        ],
+        confirmLabel: '비활성화',
+      });
+      if (ok) deactivateWarehouse(warehouse.id);
+    },
+  });
 
   return (
     <Card className="border-stone-200 hover:border-violet-300 transition-colors">
