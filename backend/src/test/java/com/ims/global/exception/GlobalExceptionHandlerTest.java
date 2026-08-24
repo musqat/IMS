@@ -23,8 +23,8 @@ import static org.assertj.core.api.Assertions.*;
 
 /**
  * GlobalExceptionHandler 단위 테스트
- * - 핸들러를 직접 호출해 어떤 상태 코드와 메시지를 내는지 체크한다
- * - ApiResponse가 ErrorCode 이름을 담지 않아 프런트가 메시지 문자열에 의존한다.
+ * - 핸들러를 직접 호출해 어떤 상태 코드·코드·메시지를 내는지 체크한다
+ * - code는 ErrorCode 이름이다. 프런트가 이걸로 분기하므로 메시지와 별개로 검증한다
  */
 class GlobalExceptionHandlerTest {
 
@@ -50,6 +50,8 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().message())
                 .isEqualTo(ErrorCode.WAREHOUSE_NOT_OWNED.getMessage());
+        // 프런트는 이 값으로 분기한다. 메시지 문구가 바뀌어도 여기는 그대로여야 한다
+        assertThat(response.getBody().code()).isEqualTo("WAREHOUSE_NOT_OWNED");
         assertThat(response.getBody().data()).isNull();
     }
 
@@ -65,6 +67,8 @@ class GlobalExceptionHandlerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody().message()).isEqualTo("email: 이메일은 필수입니다.");
+        // ErrorCode가 없는 실패다. 분기할 종류가 아니라 메시지를 그대로 보여주면 된다
+        assertThat(response.getBody().code()).isNull();
     }
 
     @Test
@@ -144,5 +148,30 @@ class GlobalExceptionHandlerTest {
                 .isEqualTo(ErrorCode.INTERNAL_SERVER_ERROR.getMessage());
         // 내부 예외 메시지("boom")가 응답에 새어나가지 않아야 한다
         assertThat(response.getBody().message()).doesNotContain("boom");
+    }
+
+    @Test
+    @DisplayName("같은 409라도 code로 구분된다 - status만으로는 원인을 알 수 없다")
+    void sameStatus_differentCode() {
+        // given - 창고 삭제가 막히는 두 가지 원인. 둘 다 409다
+        var byInventory = handler.handleImsException(
+                new ImsException(ErrorCode.WAREHOUSE_HAS_INVENTORY));
+        var byProduction = handler.handleImsException(
+                new ImsException(ErrorCode.WAREHOUSE_HAS_PRODUCTION));
+
+        // when & then - status는 같고 code는 다르다
+        assertThat(byInventory.getStatusCode()).isEqualTo(byProduction.getStatusCode());
+        assertThat(byInventory.getBody().code()).isEqualTo("WAREHOUSE_HAS_INVENTORY");
+        assertThat(byProduction.getBody().code()).isEqualTo("WAREHOUSE_HAS_PRODUCTION");
+    }
+
+    @Test
+    @DisplayName("성공 응답에는 code가 없다")
+    void success_hasNoCode() {
+        ApiResponse<String> response = ApiResponse.success("ok");
+
+        assertThat(response.code()).isNull();
+        assertThat(response.message()).isEqualTo("success");
+        assertThat(response.data()).isEqualTo("ok");
     }
 }

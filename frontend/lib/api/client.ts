@@ -111,3 +111,16 @@ export function getApiError(error: unknown, fallback = '오류가 발생했습�
   }
   return fallback;
 }
+
+/**
+ * 백엔드 ApiResponse.code 추출
+ *
+ * HTTP status만으로는 원인을 못 가린다. 409 하나만 해도 중복 등록, 재고 잔존,
+ * 생산 기록 잔존, 비활성 창고가 전부 409다.
+ */
+export function getErrorCode(error: unknown): string | null {
+  if (isAxiosError(error)) {
+    return (error.response?.data?.code as string | undefined) ?? null;
+  }
+  return null;
+}

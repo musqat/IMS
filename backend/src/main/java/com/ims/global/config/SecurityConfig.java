@@ -1,5 +1,7 @@
 package com.ims.global.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ims.global.common.ApiResponse;
 import com.ims.global.exception.ErrorCode;
 import com.ims.global.security.JwtAuthFilter;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +33,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final ObjectMapper objectMapper;
 
     @Value("${cors.allowed-origins}")
     private String allowedOrigins;
@@ -59,9 +62,8 @@ public class SecurityConfig {
                             res.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             res.setCharacterEncoding(StandardCharsets.UTF_8.name());
                             res.setStatus(ErrorCode.UNAUTHORIZED.getStatus().value());
-                            res.getWriter().write(
-                                    "{\"message\":\"" + ErrorCode.UNAUTHORIZED.getMessage() + "\",\"data\":null}"
-                            );
+                            objectMapper.writeValue(
+                                    res.getWriter(), ApiResponse.fail(ErrorCode.UNAUTHORIZED));
                         })
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)

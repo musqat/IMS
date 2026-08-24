@@ -1,8 +1,17 @@
 // 백엔드 ApiResponse<T> 래퍼
 export interface ApiResponse<T> {
+  /** 실패 응답에만 실린다. ErrorCode의 enum 이름 */
+  code: string | null;
   message: string;
   data: T;
 }
+
+/**
+ * 화면이 분기에 쓰는 에러 코드
+ */
+export type ErrorCodeName =
+  | 'WAREHOUSE_HAS_INVENTORY'
+  | 'WAREHOUSE_HAS_PRODUCTION';
 
 // 백엔드 Page<T> (Spring Pageable)
 export interface Page<T> {
