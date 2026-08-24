@@ -43,8 +43,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * - 여러 스레드가 동시에 InventoryService.adjustOut을 호출해도 차감이 유실되지 않음을 검증
  * - 반드시 서비스를 통해 호출한다. 리포지토리로 직접 차감하면 프로덕션 경로를 검증하지 못한다
  * - 제대로 짰는지 확인: 서비스의 락을 떼면 이 테스트가 실패해야 한다
- * - H2(MODE=PostgreSQL)에서 돌기 때문에 락 의미론은 실제 Postgres와 다르다.
- *   Testcontainers로 옮기면 해결되나 CI에 Docker가 필요하다
+ * - 기본은 H2에서 돈다. 락 의미론이 실제 Postgres와 달라 완전한 보장은 아니다.
+ *   `./gradlew concurrencyTestPg`로 실제 Postgres에서 한 번 더 돌릴 수 있다
  */
 @SpringBootTest
 @ActiveProfiles("test")

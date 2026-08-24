@@ -1,15 +1,17 @@
+# 기본은 H2. 환경변수를 주면 실제 DB로 바뀐다.
+# 동시성 테스트를 Postgres에서 돌릴 때 쓴다 — ./gradlew concurrencyTestPg
 spring:
   datasource:
-    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: ${TEST_DB_URL:jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1}
+    driver-class-name: ${TEST_DB_DRIVER:org.h2.Driver}
+    username: ${TEST_DB_USER:sa}
+    password: ${TEST_DB_PASSWORD:}
   jpa:
     hibernate:
       ddl-auto: create-drop
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
+        dialect: ${TEST_DB_DIALECT:org.hibernate.dialect.H2Dialect}
 
   data:
     redis:

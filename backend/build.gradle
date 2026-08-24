@@ -54,6 +54,28 @@ tasks.named('test') {
 	finalizedBy jacocoTestReport
 }
 
+// 동시성 테스트를 실제 Postgres에서 돌린다.
+// 검증 대상이 비관적 락인데 H2는 MODE=PostgreSQL이어도 락 의미론이 다르다.
+// 기본 test 태스크는 H2 그대로다.
+//
+//   docker compose up -d pgtest
+//   ./gradlew concurrencyTestPg
+tasks.register('concurrencyTestPg', Test) {
+	group = 'verification'
+	description = '동시성 테스트를 실제 Postgres에서 실행 (컨테이너를 미리 띄워야 한다)'
+	// Test 타입을 새로 만들면 기본값이 없어 직접 지정해야 한다
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform()
+	filter { includeTestsMatching '*InventoryConcurrencyTest*' }
+
+	environment 'TEST_DB_URL', 'jdbc:postgresql://localhost:5442/ims'
+	environment 'TEST_DB_DRIVER', 'org.postgresql.Driver'
+	environment 'TEST_DB_USER', 'ims'
+	environment 'TEST_DB_PASSWORD', 'ims'
+	environment 'TEST_DB_DIALECT', 'org.hibernate.dialect.PostgreSQLDialect'
+}
+
 // 커버리지에서 제외할 대상.
 // DTO/엔티티/설정은 로직이 없거나 롬복 생성 코드라 수치만 부풀린다.
 def jacocoExcludes = [

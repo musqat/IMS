@@ -61,6 +61,27 @@ services:
     depends_on:
       - backend
 
+  # 동시성 테스트 전용 Postgres
+  # ddl-auto가 create-drop이라 개발용 postgres(5432)를 쓰면 스키마가 날아간다.
+  #
+  #   docker compose up -d pgtest
+  #   cd backend && ./gradlew concurrencyTestPg
+  pgtest:
+    image: postgres:16-alpine
+    container_name: ims-pgtest
+    profiles: ["test"]          # 기본 up에는 안 뜬다
+    environment:
+      POSTGRES_DB: ims
+      POSTGRES_USER: ims
+      POSTGRES_PASSWORD: ims
+    ports:
+      - "5442:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ims -d ims"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
 volumes:
   ims-postgres-data:
   ims-redis-data:
