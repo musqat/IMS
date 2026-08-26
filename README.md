@@ -316,4 +316,4 @@ IMS/
 
 ## License
 
-MIT
+[MIT](LICENSE)
