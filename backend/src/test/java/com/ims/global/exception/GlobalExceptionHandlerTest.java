@@ -4,6 +4,7 @@ import com.ims.global.common.ApiResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.MethodParameter;
+import java.sql.SQLException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -115,16 +116,48 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    @DisplayName("무결성 위반은 409를 반환한다")
-    void handleDataIntegrityViolation_returns409() {
-        ResponseEntity<ApiResponse<Void>> response = handler.handleDataIntegrityViolation(
-                new DataIntegrityViolationException("duplicate key"));
+    @DisplayName("중복 키 위반은 DUPLICATE_RESOURCE로 나간다")
+    void handleDataIntegrityViolation_uniqueViolation() {
+        // given - SQLState 23505 = unique_violation
+        DataIntegrityViolationException e = new DataIntegrityViolationException(
+                "duplicate key", new SQLException("duplicate key", "23505"));
 
+        // when
+        ResponseEntity<ApiResponse<Void>> response = handler.handleDataIntegrityViolation(e);
+
+        // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-        assertThat(response.getBody().message())
-                .isEqualTo(ErrorCode.DUPLICATE_RESOURCE.getMessage());
-        // 주의: FK 위반도 이 핸들러로 들어와 "이미 존재하는 리소스입니다"로 나간다.
-        // 참조 중인 창고/품목 삭제 시 사용자에게 부정확한 메시지가 전달된다.
+        assertThat(response.getBody().code()).isEqualTo(ErrorCode.DUPLICATE_RESOURCE.name());
+    }
+
+    /** 안 가르면 삭제 요청에 "이미 존재하는 리소스입니다"가 나간다 */
+    @Test
+    @DisplayName("외래 키 위반은 REFERENCED_RESOURCE로 나간다")
+    void handleDataIntegrityViolation_foreignKeyViolation() {
+        // given - SQLState 23503 = foreign_key_violation
+        DataIntegrityViolationException e = new DataIntegrityViolationException(
+                "update or delete violates foreign key constraint",
+                new SQLException("violates foreign key constraint", "23503"));
+
+        // when
+        ResponseEntity<ApiResponse<Void>> response = handler.handleDataIntegrityViolation(e);
+
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody().code()).isEqualTo(ErrorCode.REFERENCED_RESOURCE.name());
+        assertThat(response.getBody().message()).isNotEqualTo(ErrorCode.DUPLICATE_RESOURCE.getMessage());
+    }
+
+    @Test
+    @DisplayName("SQLState를 못 읽으면 기존 동작을 유지한다")
+    void handleDataIntegrityViolation_noSqlState() {
+        // given - 원인 예외가 SQLException이 아닌 경우
+        ResponseEntity<ApiResponse<Void>> response = handler.handleDataIntegrityViolation(
+                new DataIntegrityViolationException("무결성 위반"));
+
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody().code()).isEqualTo(ErrorCode.DUPLICATE_RESOURCE.name());
     }
 
     @Test

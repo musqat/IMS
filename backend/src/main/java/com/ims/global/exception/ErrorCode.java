@@ -11,6 +11,7 @@ public enum ErrorCode {
     // global
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "인증이 필요합니다."),
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "이미 존재하는 리소스입니다."),
+    REFERENCED_RESOURCE(HttpStatus.CONFLICT, "다른 데이터가 참조하고 있어 처리할 수 없습니다."),
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 토큰입니다."),
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "만료된 토큰입니다."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
@@ -48,6 +49,8 @@ public enum ErrorCode {
     DUPLICATE_ITEM_CODE(HttpStatus.CONFLICT, "이미 사용 중인 품목 코드입니다."),
     ITEM_NOT_OWNED(HttpStatus.FORBIDDEN, "해당 품목에 대한 권한이 없습니다."),
     ITEM_IN_USE_BY_BOM(HttpStatus.CONFLICT, "BOM에 등록된 품목은 삭제할 수 없습니다."),
+    ITEM_HAS_INVENTORY(HttpStatus.CONFLICT, "재고가 남아 있어 품목을 삭제할 수 없습니다."),
+    ITEM_HAS_PRODUCTION(HttpStatus.CONFLICT, "생산 기록이 있어 품목을 삭제할 수 없습니다."),
 
     // bom
     BOM_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 BOM입니다."),

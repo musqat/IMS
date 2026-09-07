@@ -27,6 +27,9 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long>, Jpa
 
     Optional<Inventory> findByWarehouseIdAndItemId(Long warehouseId, Long itemId);
 
+    /** 품목 삭제 전 참조 확인 */
+    boolean existsByItemId(Long itemId);
+
     /** 부품 목록을 한 번에 일괄 조회 */
     List<Inventory> findAllByWarehouseIdAndItemIdIn(Long warehouseId, List<Long> itemIds);
 
