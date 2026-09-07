@@ -39,6 +39,9 @@ class UserServiceTest {
     private JwtProvider jwtProvider;
     @Mock
     private StringRedisTemplate redisTemplate;
+
+    @Mock
+    private LoginAttemptService loginAttemptService;
     @Mock
     private ValueOperations<String, String> valueOps;
 

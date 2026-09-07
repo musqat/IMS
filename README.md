@@ -67,9 +67,9 @@ Render 무료 인스턴스는 15분간 요청이 없으면 슬립됩니다. 깨�
 | 영역 | 기술 |
 |------|------|
 | Backend | Java 21, Spring Boot 3.x, Spring Security, Spring Data JPA, Spring Batch |
-| Database | PostgreSQL — 로컬 Docker 16 · Supabase 17 (배포) · Redis (Refresh Token 저장소) |
+| Database | PostgreSQL — 로컬 Docker 16 · Supabase 17 (배포) · Redis (Refresh Token · 로그인 시도 카운터) |
 | Frontend | Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui |
-| Auth | JWT — Access Token (15분) + Refresh Token (2주, Redis 저장) |
+| Auth | JWT — Access Token (15분) + Refresh Token (2주, Redis 저장) · 로그인 실패 5회 시 10분 잠금 |
 | Test | JUnit 5, Mockito, @WebMvcTest, @DataJpaTest · Vitest · Playwright |
 | Infra | Docker, Docker Compose |
 
@@ -177,8 +177,8 @@ BOM 부품 재고는 단일 IN 쿼리로 일괄 조회하여 N+1 방지.
 
 ## 테스트 전략
 
-TDD로 개발. 총 **403개 테스트** — 백엔드 334 · 프론트 단위 51 · E2E 18.
-백엔드는 JaCoCo 기준 **라인 93.6% / 브랜치 86.3%**
+TDD로 개발. 총 **408개 테스트** — 백엔드 339 · 프론트 단위 51 · E2E 18.
+백엔드는 JaCoCo 기준 **라인 93.7% / 브랜치 86.6%**
 
 <details>
 <summary><b>레이어별 테스트 구성과 커버리지 기준</b></summary>

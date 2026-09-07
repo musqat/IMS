@@ -30,6 +30,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
     private final StringRedisTemplate redisTemplate;
+    private final LoginAttemptService loginAttemptService;
 
     /**
      * 회원가입 (auto-login)
@@ -61,12 +62,15 @@ public class UserService {
      */
     @Transactional
     public LoginResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new ImsException(ErrorCode.LOGIN_FAILED));
+        loginAttemptService.checkNotLocked(request.email());
 
-        if (!user.matchesPassword(request.password(), passwordEncoder)) {
+        User user = userRepository.findByEmail(request.email()).orElse(null);
+        if (user == null || !user.matchesPassword(request.password(), passwordEncoder)) {
+            // 계정이 없을 때도 센다. 세지 않으면 존재하는 계정만 잠겨 열거에 쓰인다
+            loginAttemptService.recordFailure(request.email());
             throw new ImsException(ErrorCode.LOGIN_FAILED);
         }
+        loginAttemptService.reset(request.email());
 
         String accessToken = jwtProvider.generateAccessToken(user.getId());
         String refreshToken = jwtProvider.generateRefreshToken(user.getId());
