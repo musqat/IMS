@@ -6,7 +6,9 @@ import com.ims.global.support.DomainValidator;
 import com.ims.item.dto.request.ItemCreateRequest;
 import com.ims.item.dto.response.ItemResponse;
 import com.ims.item.entity.Item;
+import com.ims.inventory.repository.InventoryRepository;
 import com.ims.item.repository.BomRepository;
+import com.ims.production.repository.ProductionRepository;
 import com.ims.item.repository.ItemRepository;
 import com.ims.user.entity.User;
 import com.ims.user.repository.UserRepository;
@@ -24,6 +26,8 @@ public class ItemService {
     private final ItemRepository itemRepository;
     private final UserRepository userRepository;
     private final BomRepository bomRepository;
+    private final InventoryRepository inventoryRepository;
+    private final ProductionRepository productionRepository;
     private final DomainValidator domainValidator;
 
     /**
@@ -71,7 +75,7 @@ public class ItemService {
     /**
      * 품목 삭제
      * - 소유자 검증
-     * - BOM parent/child 참조 여부 확인
+     * - BOM parent/child, 재고, 생산 기록 참조 여부 확인
      * - 검증 통과 시 삭제
      */
     @Transactional
@@ -80,6 +84,12 @@ public class ItemService {
 
         if (bomRepository.existsByParentId(itemId) || bomRepository.existsByChildId(itemId)) {
             throw new ImsException(ErrorCode.ITEM_IN_USE_BY_BOM);
+        }
+        if (inventoryRepository.existsByItemId(itemId)) {
+            throw new ImsException(ErrorCode.ITEM_HAS_INVENTORY);
+        }
+        if (productionRepository.existsByItemId(itemId)) {
+            throw new ImsException(ErrorCode.ITEM_HAS_PRODUCTION);
         }
 
         itemRepository.delete(item);

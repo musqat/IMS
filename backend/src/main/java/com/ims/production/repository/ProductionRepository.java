@@ -40,4 +40,7 @@ public interface ProductionRepository extends JpaRepository<ProductionRecord, Lo
 
     /** 창고에 생산 기록이 하나라도 있는지 — 창고 삭제 가능 여부 판단용 */
     boolean existsByWarehouseId(Long warehouseId);
+
+    /** 품목 삭제 전 참조 확인 */
+    boolean existsByItemId(Long itemId);
 }

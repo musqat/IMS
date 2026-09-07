@@ -7,7 +7,9 @@ import com.ims.item.dto.request.ItemCreateRequest;
 import com.ims.item.dto.response.ItemResponse;
 import com.ims.item.entity.Item;
 import com.ims.item.entity.ItemType;
+import com.ims.inventory.repository.InventoryRepository;
 import com.ims.item.repository.BomRepository;
+import com.ims.production.repository.ProductionRepository;
 import com.ims.item.repository.ItemRepository;
 import com.ims.user.entity.User;
 import com.ims.user.repository.UserRepository;
@@ -39,6 +41,12 @@ class ItemServiceTest {
 
     @Mock
     private BomRepository bomRepository;
+
+    @Mock
+    private InventoryRepository inventoryRepository;
+
+    @Mock
+    private ProductionRepository productionRepository;
 
     @Mock
     private DomainValidator domainValidator;
@@ -158,6 +166,8 @@ class ItemServiceTest {
         given(domainValidator.getOwnedItem(1L, 1L)).willReturn(item);
         given(bomRepository.existsByParentId(1L)).willReturn(false);
         given(bomRepository.existsByChildId(1L)).willReturn(false);
+        given(inventoryRepository.existsByItemId(1L)).willReturn(false);
+        given(productionRepository.existsByItemId(1L)).willReturn(false);
 
         // when
         itemService.deleteItem(1L, 1L);
@@ -189,5 +199,39 @@ class ItemServiceTest {
         assertThatThrownBy(() -> itemService.deleteItem(1L, 1L))
                 .isInstanceOf(ImsException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ITEM_IN_USE_BY_BOM);
+    }
+
+    /** 가드가 없으면 FK 위반이 DUPLICATE_RESOURCE로 나간다 */
+    @Test
+    @DisplayName("품목 삭제 실패 - 재고가 남아 있음")
+    void deleteItem_hasInventory() {
+        // given
+        given(domainValidator.getOwnedItem(1L, 1L)).willReturn(item);
+        given(bomRepository.existsByParentId(1L)).willReturn(false);
+        given(bomRepository.existsByChildId(1L)).willReturn(false);
+        given(inventoryRepository.existsByItemId(1L)).willReturn(true);
+
+        // when & then
+        assertThatThrownBy(() -> itemService.deleteItem(1L, 1L))
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ITEM_HAS_INVENTORY);
+        then(itemRepository).should(never()).delete(item);
+    }
+
+    @Test
+    @DisplayName("품목 삭제 실패 - 생산 기록이 있음")
+    void deleteItem_hasProduction() {
+        // given
+        given(domainValidator.getOwnedItem(1L, 1L)).willReturn(item);
+        given(bomRepository.existsByParentId(1L)).willReturn(false);
+        given(bomRepository.existsByChildId(1L)).willReturn(false);
+        given(inventoryRepository.existsByItemId(1L)).willReturn(false);
+        given(productionRepository.existsByItemId(1L)).willReturn(true);
+
+        // when & then
+        assertThatThrownBy(() -> itemService.deleteItem(1L, 1L))
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ITEM_HAS_PRODUCTION);
+        then(itemRepository).should(never()).delete(item);
     }
 }
