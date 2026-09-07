@@ -67,10 +67,10 @@ Render 무료 인스턴스는 15분간 요청이 없으면 슬립됩니다. 깨�
 | 영역 | 기술 |
 |------|------|
 | Backend | Java 21, Spring Boot 3.x, Spring Security, Spring Data JPA, Spring Batch |
-| Database | PostgreSQL 16 (주 저장소), Redis (Refresh Token 저장소) |
+| Database | PostgreSQL — 로컬 Docker 16 · Supabase 17 (배포) · Redis (Refresh Token 저장소) |
 | Frontend | Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui |
-| Auth | JWT — Access Token (1h) + Refresh Token (2주, Redis 저장) |
-| Test | JUnit 5, Mockito, @WebMvcTest, @DataJpaTest |
+| Auth | JWT — Access Token (15분) + Refresh Token (2주, Redis 저장) |
+| Test | JUnit 5, Mockito, @WebMvcTest, @DataJpaTest · Vitest · Playwright |
 | Infra | Docker, Docker Compose |
 
 ## 시스템 구조
@@ -91,7 +91,7 @@ Render 무료 인스턴스는 15분간 요청이 없으면 슬립됩니다. 깨�
 └──────┬──────────────────────────────┬────────────────┘
        │ JPA                          │ RedisTemplate
 ┌──────▼──────┐               ┌───────▼───────┐
-│ PostgreSQL16│               │     Redis     │
+│ PostgreSQL  │               │     Redis     │
 │  (주 DB)    │               │ (Refresh 토큰) │
 └─────────────┘               └───────────────┘
 ```
@@ -177,8 +177,8 @@ BOM 부품 재고는 단일 IN 쿼리로 일괄 조회하여 N+1 방지.
 
 ## 테스트 전략
 
-TDD로 개발. 총 **396개 테스트** — 백엔드 327 · 프론트 단위 51 · E2E 18.
-백엔드는 JaCoCo 기준 **라인 92.1% / 브랜치 84.3%**
+TDD로 개발. 총 **403개 테스트** — 백엔드 334 · 프론트 단위 51 · E2E 18.
+백엔드는 JaCoCo 기준 **라인 93.6% / 브랜치 86.3%**
 
 <details>
 <summary><b>레이어별 테스트 구성과 커버리지 기준</b></summary>
@@ -195,6 +195,7 @@ TDD로 개발. 총 **396개 테스트** — 백엔드 327 · 프론트 단위 51
 | 동시성 | 실제 PostgreSQL | 비관적 락, 동시 출고 시 lost update |
 | 프론트 단위 | Vitest | 날짜 변환, 조회 실패 판정, 캐시 키, 비밀번호 정책 |
 | 화면 흐름 | Playwright | 로그인·권한·공유 창고·초대 수락을 브라우저로 |
+| 쿼리 수 | Hibernate Statistics | 데이터가 늘어도 쿼리 수가 늘지 않는지 |
 
 ```bash
 ./gradlew test jacocoTestReport   # 백엔드 + 커버리지 리포트
@@ -220,8 +221,9 @@ npm run e2e                       # 화면 흐름 (백엔드 실행 필요)
 
 이 프로젝트에서 가장 값이 컸던 부분
 
-- [시행착오](docs/trial-and-error.md) — 될 거라 보고 정한 것들을 확인해보니 반대인 게 여럿이었다. 무엇을 될 거라 봤고 무엇으로 갈렸는지
+- [시행착오](docs/trial-and-error.md) — 될 거라 보고 정한 것들을 확인해보니 반대인 게 여럿이었다. 예상과 확인 결과를 나란히 적었다
 - [문제 해결](docs/problem-solving.md) — 겪은 장애와 버그를 문제 → 원인 → 해결
+- [성능 튜닝](docs/performance.md) — 조회 경로의 쿼리 수. 수치마다 잰 조건을 붙였다
 
 ## Getting Started
 
