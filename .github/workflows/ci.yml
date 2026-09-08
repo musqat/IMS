@@ -221,25 +221,15 @@ jobs:
           mkdir -p build/trivy-scan
           cd build/trivy-scan
           jar xf ../libs/ims-0.0.1-SNAPSHOT.jar BOOT-INF/lib
-          ls BOOT-INF/lib | wc -l
+          echo "jar $(ls BOOT-INF/lib | wc -l)개"
 
+      # trivy-action은 바이너리 설치 단계에서 실패한다. 도커 이미지를 직접 돌린다
       - name: 취약점 목록 (HIGH·CRITICAL)
-        uses: aquasecurity/trivy-action@v0.33.1
-        with:
-          scan-type: rootfs
-          scan-ref: backend/build/trivy-scan
-          scanners: vuln
-          severity: HIGH,CRITICAL
-          format: table
-          exit-code: '0'
+        run: |
+          mkdir -p "$HOME/.cache/trivy"
+          docker run --rm -v "$PWD/backend/build/trivy-scan:/scan:ro" -v "$HOME/.cache/trivy:/root/.cache/trivy" aquasec/trivy:0.65.0 rootfs --scanners vuln --severity HIGH,CRITICAL /scan
 
       # CRITICAL만 실패시킨다. HIGH에는 아직 패치가 없는 게 남아 있어 막으면 항상 빨갛다
+      # DB는 앞 스텝이 받아둔 것을 다시 쓴다
       - name: CRITICAL 게이트
-        uses: aquasecurity/trivy-action@v0.33.1
-        with:
-          scan-type: rootfs
-          scan-ref: backend/build/trivy-scan
-          scanners: vuln
-          severity: CRITICAL
-          ignore-unfixed: true
-          exit-code: '1'
+        run: docker run --rm -v "$PWD/backend/build/trivy-scan:/scan:ro" -v "$HOME/.cache/trivy:/root/.cache/trivy" aquasec/trivy:0.65.0 rootfs --scanners vuln --severity CRITICAL --ignore-unfixed --exit-code 1 /scan
