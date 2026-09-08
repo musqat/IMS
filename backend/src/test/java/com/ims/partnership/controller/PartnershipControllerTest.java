@@ -88,7 +88,7 @@ class PartnershipControllerTest {
     @DisplayName("초대 수락 성공")
     void accept_success() throws Exception {
         // given
-        PartnershipResponse response = new PartnershipResponse(1L, 1L, "본사", 2L, "하청", "SUB001", "ACCEPTED", null, null, null);
+        PartnershipResponse response = new PartnershipResponse(1L, 1L, "A사", 2L, "B사", "SUB001", "ACCEPTED", null, null, null);
         given(partnershipService.accept(eq(2L), eq("valid-token"))).willReturn(response);
 
         // when & then
@@ -114,47 +114,47 @@ class PartnershipControllerTest {
     }
 
     @Test
-    @DisplayName("하청 목록 조회 성공")
+    @DisplayName("내가 초대한 파트너 목록 조회 성공")
     void getSubList_success() throws Exception {
         // given
-        PartnershipResponse response = new PartnershipResponse(1L, 1L, "본사", 2L, "하청", "SUB001", "ACCEPTED", null, null, null);
+        PartnershipResponse response = new PartnershipResponse(1L, 1L, "A사", 2L, "B사", "SUB001", "ACCEPTED", null, null, null);
         given(partnershipService.getSubList(1L)).willReturn(List.of(response));
 
         // when & then
         mockMvc.perform(get("/api/v1/partnerships/subs")
                         .with(authentication(auth(1L))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].subCompanyName").value("하청"));
+                .andExpect(jsonPath("$.data[0].subCompanyName").value("B사"));
     }
 
     @Test
-    @DisplayName("본사 목록 조회 성공")
+    @DisplayName("나를 초대한 파트너 목록 조회 성공")
     void getMainList_success() throws Exception {
         // given
-        PartnershipResponse response = new PartnershipResponse(1L, 1L, "본사", 2L, "하청", "SUB001", "ACCEPTED", null, null, null);
+        PartnershipResponse response = new PartnershipResponse(1L, 1L, "A사", 2L, "B사", "SUB001", "ACCEPTED", null, null, null);
         given(partnershipService.getMainList(2L)).willReturn(List.of(response));
 
         // when & then
         mockMvc.perform(get("/api/v1/partnerships/mains")
                         .with(authentication(auth(2L))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].mainCompanyName").value("본사"));
+                .andExpect(jsonPath("$.data[0].mainCompanyName").value("A사"));
     }
 
     @Test
     @DisplayName("별명 설정 성공")
     void updateAlias_success() throws Exception {
         // given
-        PartnershipResponse response = new PartnershipResponse(1L, 1L, "본사", 2L, "하청", "SUB001", "ACCEPTED", null, "우리하청", null);
-        given(partnershipService.updateAlias(eq(1L), eq(1L), eq("우리하청"))).willReturn(response);
+        PartnershipResponse response = new PartnershipResponse(1L, 1L, "A사", 2L, "B사", "SUB001", "ACCEPTED", null, "우리파트너", null);
+        given(partnershipService.updateAlias(eq(1L), eq(1L), eq("우리파트너"))).willReturn(response);
 
         // when & then
         mockMvc.perform(patch("/api/v1/partnerships/1/alias")
                         .with(authentication(auth(1L)))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new AliasRequest("우리하청"))))
+                        .content(objectMapper.writeValueAsString(new AliasRequest("우리파트너"))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.alias").value("우리하청"));
+                .andExpect(jsonPath("$.data.alias").value("우리파트너"));
     }
 
     @Test
@@ -184,7 +184,7 @@ class PartnershipControllerTest {
     void acceptById_success() throws Exception {
         // given
         PartnershipResponse response = new PartnershipResponse(
-                1L, 1L, "본사", 2L, "하청", "SUB001", "ACCEPTED", null, null, null);
+                1L, 1L, "A사", 2L, "B사", "SUB001", "ACCEPTED", null, null, null);
         given(partnershipService.acceptById(2L, 1L)).willReturn(response);
 
         // when & then - 토큰 방식 POST /partnerships/accept와 경로가 겹치지 않는 것도 함께 확인된다
@@ -199,14 +199,14 @@ class PartnershipControllerTest {
     void getReceivedInvites_success() throws Exception {
         // given
         PartnershipResponse response = new PartnershipResponse(
-                1L, 1L, "본사", 2L, "하청", "SUB001", "PENDING", null, null, null);
+                1L, 1L, "A사", 2L, "B사", "SUB001", "PENDING", null, null, null);
         given(partnershipService.getReceivedInvites(2L)).willReturn(List.of(response));
 
-        // when & then - 하청 화면은 본사 이름을 본다
+        // when & then - 초대받은 쪽 화면은 초대한 쪽 이름을 본다
         mockMvc.perform(get("/api/v1/partnerships/invites/received")
                         .with(authentication(auth(2L))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].mainCompanyName").value("본사"))
+                .andExpect(jsonPath("$.data[0].mainCompanyName").value("A사"))
                 .andExpect(jsonPath("$.data[0].status").value("PENDING"));
     }
 
@@ -215,14 +215,14 @@ class PartnershipControllerTest {
     void getSentInvites_success() throws Exception {
         // given
         PartnershipResponse response = new PartnershipResponse(
-                1L, 1L, "본사", 2L, "하청", "SUB001", "PENDING", null, null, null);
+                1L, 1L, "A사", 2L, "B사", "SUB001", "PENDING", null, null, null);
         given(partnershipService.getSentInvites(1L)).willReturn(List.of(response));
 
-        // when & then - 본사 화면은 하청 이름을 본다
+        // when & then - 초대한 쪽 화면은 초대받은 쪽 이름을 본다
         mockMvc.perform(get("/api/v1/partnerships/invites/sent")
                         .with(authentication(auth(1L))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].subCompanyName").value("하청"))
+                .andExpect(jsonPath("$.data[0].subCompanyName").value("B사"))
                 .andExpect(jsonPath("$.data[0].status").value("PENDING"));
     }
 }

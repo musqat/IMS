@@ -56,11 +56,11 @@ class WarehouseShareServiceTest {
     void setUp() {
         owner = User.builder()
                 .id(1L).email("owner@test.com").password("encoded")
-                .companyName("본사").companyCode("1000000001").build();
+                .companyName("A사").companyCode("1000000001").build();
 
         target = User.builder()
                 .id(2L).email("target@test.com").password("encoded")
-                .companyName("하청").companyCode("2000000001").build();
+                .companyName("B사").companyCode("2000000001").build();
 
         warehouse = Warehouse.builder()
                 .id(1L).owner(owner).name("서울 창고").build();

@@ -40,9 +40,9 @@ class WarehouseShareRepositoryTest {
     @BeforeEach
     void setUp() {
         owner = userRepository.save(User.builder()
-                .email("owner@test.com").password("pw").companyName("본사").companyCode("1000000001").build());
+                .email("owner@test.com").password("pw").companyName("A사").companyCode("1000000001").build());
         guest = userRepository.save(User.builder()
-                .email("guest@test.com").password("pw").companyName("하청").companyCode("2000000002").build());
+                .email("guest@test.com").password("pw").companyName("B사").companyCode("2000000002").build());
         warehouse = warehouseRepository.save(
                 Warehouse.builder().owner(owner).name("서울 창고").location("서울").build());
     }

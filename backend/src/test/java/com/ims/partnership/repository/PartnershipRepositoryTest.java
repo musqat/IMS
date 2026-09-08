@@ -35,9 +35,9 @@ class PartnershipRepositoryTest {
     @BeforeEach
     void setUp() {
         main = userRepository.save(User.builder()
-                .email("main@test.com").password("pw").companyName("본사").companyCode("1000000001").build());
+                .email("main@test.com").password("pw").companyName("A사").companyCode("1000000001").build());
         sub = userRepository.save(User.builder()
-                .email("sub@test.com").password("pw").companyName("하청").companyCode("2000000002").build());
+                .email("sub@test.com").password("pw").companyName("B사").companyCode("2000000002").build());
     }
 
     @Test
@@ -84,7 +84,7 @@ class PartnershipRepositoryTest {
     }
 
     @Test
-    @DisplayName("본사 기준 ACCEPTED 하청 목록 조회")
+    @DisplayName("초대한 쪽 기준 ACCEPTED 파트너 목록 조회")
     void findAllByMainIdAndStatus_accepted() {
         // given
         partnershipRepository.save(Partnership.builder()
@@ -99,7 +99,7 @@ class PartnershipRepositoryTest {
     }
 
     @Test
-    @DisplayName("하청 기준 ACCEPTED 본사 목록 조회")
+    @DisplayName("초대받은 쪽 기준 ACCEPTED 파트너 목록 조회")
     void findAllBySubIdAndStatus_accepted() {
         // given
         partnershipRepository.save(Partnership.builder()

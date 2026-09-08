@@ -142,7 +142,7 @@ class WarehouseControllerTest {
     @DisplayName("창고 공유 성공")
     void share_success() throws Exception {
         // given
-        WarehouseShareResponse response = new WarehouseShareResponse(1L, 1L, "서울 창고", "서울시 강남구",1L ,"하청", 1L, "테스트회사 ","VIEW");
+        WarehouseShareResponse response = new WarehouseShareResponse(1L, 1L, "서울 창고", "서울시 강남구",1L ,"B사", 1L, "테스트회사 ","VIEW");
         given(warehouseShareService.share(eq(1L), eq(1L), any())).willReturn(response);
 
         // when & then
@@ -186,7 +186,7 @@ class WarehouseControllerTest {
     @DisplayName("공유받은 창고 목록 조회 성공")
     void getShared_success() throws Exception {
         // given
-        WarehouseShareResponse response = new WarehouseShareResponse(1L, 1L, "서울 창고", "서울시 강남구",1L ,"하청", 1L, "테스트회사 ","VIEW");
+        WarehouseShareResponse response = new WarehouseShareResponse(1L, 1L, "서울 창고", "서울시 강남구",1L ,"B사", 1L, "테스트회사 ","VIEW");
         given(warehouseShareService.getSharedWarehouses(2L)).willReturn(List.of(response));
 
         // when & then

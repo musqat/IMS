@@ -39,9 +39,15 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(ApiResponse.fail(ErrorCode.UNAUTHORIZED), HttpStatus.UNAUTHORIZED);
     }
 
+    /** 예외 메시지를 그대로 내보내면 클라이언트가 보낸 값이 응답에 실린다. 이름만 알린다 */
     @ExceptionHandler({MissingServletRequestParameterException.class, MethodArgumentTypeMismatchException.class})
     public ResponseEntity<ApiResponse<Void>> handleMissingParam(Exception e) {
-        return new ResponseEntity<>(ApiResponse.fail(e.getMessage()), HttpStatus.BAD_REQUEST);
+        String name = e instanceof MissingServletRequestParameterException missing
+                ? missing.getParameterName()
+                : ((MethodArgumentTypeMismatchException) e).getName();
+        return new ResponseEntity<>(
+                ApiResponse.fail("요청 파라미터 '" + name + "'이(가) 올바르지 않습니다."),
+                HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)

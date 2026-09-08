@@ -50,7 +50,7 @@ class PartnershipServiceTest {
                 .id(1L)
                 .email("main@test.com")
                 .password("encoded")
-                .companyName("본사")
+                .companyName("A사")
                 .companyCode("1000000001")
                 .build();
 
@@ -58,7 +58,7 @@ class PartnershipServiceTest {
                 .id(2L)
                 .email("sub@test.com")
                 .password("encoded")
-                .companyName("하청")
+                .companyName("B사")
                 .companyCode("2000000001")
                 .build();
     }
@@ -189,7 +189,7 @@ class PartnershipServiceTest {
     }
 
     @Test
-    @DisplayName("하청 목록 조회 성공")
+    @DisplayName("내가 초대한 파트너 목록 조회 성공")
     void getSubList_success() {
         // given
         Partnership partnership = Partnership.builder()
@@ -202,11 +202,11 @@ class PartnershipServiceTest {
 
         // then
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).subCompanyName()).isEqualTo("하청");
+        assertThat(result.get(0).subCompanyName()).isEqualTo("B사");
     }
 
     @Test
-    @DisplayName("본사 목록 조회 성공")
+    @DisplayName("나를 초대한 파트너 목록 조회 성공")
     void getMainList_success() {
         // given
         Partnership partnership = Partnership.builder()
@@ -219,7 +219,7 @@ class PartnershipServiceTest {
 
         // then
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).mainCompanyName()).isEqualTo("본사");
+        assertThat(result.get(0).mainCompanyName()).isEqualTo("A사");
     }
 
     @Test
@@ -260,7 +260,7 @@ class PartnershipServiceTest {
     }
 
     @Test
-    @DisplayName("파트너십 해제 성공 - 본사가 해제, 양방향 WarehouseShare 정리됨")
+    @DisplayName("파트너십 해제 성공 - 초대한 쪽이 해제, 양방향 WarehouseShare 정리됨")
     void removePartnership_byMain() {
         // given
         Partnership partnership = Partnership.builder()
@@ -280,7 +280,7 @@ class PartnershipServiceTest {
     }
 
     @Test
-    @DisplayName("파트너십 해제 성공 - 하청이 해제, 양방향 WarehouseShare 정리됨")
+    @DisplayName("파트너십 해제 성공 - 초대받은 쪽이 해제, 양방향 WarehouseShare 정리됨")
     void removePartnership_bySub() {
         // given
         Partnership partnership = Partnership.builder()
@@ -334,10 +334,10 @@ class PartnershipServiceTest {
         given(partnershipRepository.findById(1L)).willReturn(Optional.of(partnership));
 
         // when
-        PartnershipResponse response = partnershipService.updateAlias(mainUser.getId(), 1L, "우리하청");
+        PartnershipResponse response = partnershipService.updateAlias(mainUser.getId(), 1L, "우리파트너");
 
         // then
-        assertThat(response.alias()).isEqualTo("우리하청");
+        assertThat(response.alias()).isEqualTo("우리파트너");
     }
 
     @Test
@@ -384,7 +384,7 @@ class PartnershipServiceTest {
     }
 
     @Test
-    @DisplayName("초대 취소 성공 - 본사가 PENDING 초대 삭제")
+    @DisplayName("초대 취소 성공 - 초대한 쪽이 PENDING 초대 삭제")
     void cancelInvite_success() {
         // given
         Partnership pending = Partnership.builder()
@@ -399,7 +399,7 @@ class PartnershipServiceTest {
     }
 
     @Test
-    @DisplayName("초대 취소 실패 - 본사가 아닌 User가 취소 시도")
+    @DisplayName("초대 취소 실패 - 초대한 쪽이 아닌 User가 취소 시도")
     void cancelInvite_notMain() {
         // given
         Partnership pending = Partnership.builder()
@@ -519,7 +519,7 @@ class PartnershipServiceTest {
         Partnership pending = pendingInvite(7);
         given(partnershipRepository.findById(1L)).willReturn(Optional.of(pending));
 
-        // when - 대상 하청이 id로 수락
+        // when - 초대받은 쪽이 id로 수락
         PartnershipResponse result = partnershipService.acceptById(subUser.getId(), 1L);
 
         // then - 상태가 바뀌고 토큰이 재사용되지 않도록 비워진다
@@ -592,10 +592,10 @@ class PartnershipServiceTest {
         // when
         List<PartnershipResponse> result = partnershipService.getReceivedInvites(subUser.getId());
 
-        // then - 하청 화면은 본사 이름을 본다
+        // then - 초대받은 쪽 화면은 초대한 쪽 이름을 본다
         assertThat(result).hasSize(1);
         assertThat(result.get(0).status()).isEqualTo("PENDING");
-        assertThat(result.get(0).mainCompanyName()).isEqualTo("본사");
+        assertThat(result.get(0).mainCompanyName()).isEqualTo("A사");
     }
 
     @Test
@@ -609,9 +609,9 @@ class PartnershipServiceTest {
         // when
         List<PartnershipResponse> result = partnershipService.getSentInvites(mainUser.getId());
 
-        // then - 본사 화면은 하청 이름을 본다
+        // then - 초대한 쪽 화면은 초대받은 쪽 이름을 본다
         assertThat(result).hasSize(1);
         assertThat(result.get(0).status()).isEqualTo("PENDING");
-        assertThat(result.get(0).subCompanyName()).isEqualTo("하청");
+        assertThat(result.get(0).subCompanyName()).isEqualTo("B사");
     }
 }

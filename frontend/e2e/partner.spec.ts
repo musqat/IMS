@@ -14,7 +14,7 @@ test.describe('파트너', () => {
   });
 
   test('파트너 목록 - 초대 방향과 무관하게 한 목록에 나온다', async ({ page }) => {
-    // 내 하청사 / 내 본사로 나뉘어 있던 것을 하나로 합쳤다.
+    // 내가 초대한 목록 / 나를 초대한 목록으로 나뉘어 있던 것을 하나로 합쳤다.
     // main/sub가 기능을 가르지 않기 때문이다
     await login(page, ACCOUNTS.a);
     await page.goto('/partners');

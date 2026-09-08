@@ -17,6 +17,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.nio.charset.StandardCharsets;
 
@@ -104,7 +105,7 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    @DisplayName("필수 파라미터 누락은 400과 예외 메시지를 반환한다")
+    @DisplayName("필수 파라미터 누락은 400과 파라미터 이름을 반환한다")
     void handleMissingParam_returns400() {
         // when
         ResponseEntity<ApiResponse<Void>> response = handler.handleMissingParam(
@@ -113,6 +114,23 @@ class GlobalExceptionHandlerTest {
         // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody().message()).contains("warehouseId");
+    }
+
+    @Test
+    @DisplayName("타입이 안 맞는 파라미터는 400을 반환하고 보낸 값을 응답에 싣지 않는다")
+    void handleTypeMismatch_doesNotExposeValue() {
+        // given
+        MethodArgumentTypeMismatchException e = new MethodArgumentTypeMismatchException(
+                "notanumber", Long.class, "warehouseId", null,
+                new NumberFormatException("For input string: \"notanumber\""));
+
+        // when
+        ResponseEntity<ApiResponse<Void>> response = handler.handleMissingParam(e);
+
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().message()).contains("warehouseId");
+        assertThat(response.getBody().message()).doesNotContain("notanumber");
     }
 
     @Test
