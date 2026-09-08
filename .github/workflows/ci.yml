@@ -199,3 +199,47 @@ jobs:
       - name: 실패 시 백엔드 로그
         if: failure()
         run: tail -200 /tmp/backend.log
+
+  # 백엔드 의존성 취약점 스캔.
+  # Dependabot은 이 저장소에서 못 켜서(403) Trivy로 대신한다
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      # fat jar를 그대로 스캔하면 0건이 나온다. BOOT-INF/lib를 풀어서 넘긴다
+      - name: 의존성 추출
+        working-directory: backend
+        run: |
+          ./gradlew bootJar -x test
+          mkdir -p build/trivy-scan
+          cd build/trivy-scan
+          jar xf ../libs/ims-0.0.1-SNAPSHOT.jar BOOT-INF/lib
+          ls BOOT-INF/lib | wc -l
+
+      - name: 취약점 목록 (HIGH·CRITICAL)
+        uses: aquasecurity/trivy-action@v0.33.1
+        with:
+          scan-type: rootfs
+          scan-ref: backend/build/trivy-scan
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          format: table
+          exit-code: '0'
+
+      # CRITICAL만 실패시킨다. HIGH에는 아직 패치가 없는 게 남아 있어 막으면 항상 빨갛다
+      - name: CRITICAL 게이트
+        uses: aquasecurity/trivy-action@v0.33.1
+        with:
+          scan-type: rootfs
+          scan-ref: backend/build/trivy-scan
+          scanners: vuln
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'

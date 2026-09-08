@@ -1,7 +1,7 @@
 plugins {
 	id 'java'
 	id 'jacoco'
-	id 'org.springframework.boot' version '3.5.0'
+	id 'org.springframework.boot' version '3.5.14'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -19,6 +19,8 @@ configurations {
 		extendsFrom annotationProcessor
 	}
 }
+
+ext['tomcat.version'] = '10.1.59'
 
 repositories {
 	mavenCentral()
