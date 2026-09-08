@@ -153,6 +153,7 @@ class ProductionControllerTest {
     @Test
     @DisplayName("강제 결산 실패 - 미인증 401")
     void forceSettle_unauthorized() throws Exception {
+        // when & then
         mockMvc.perform(post("/api/v1/warehouses/1/productions/1/settle"))
                 .andExpect(status().isUnauthorized());
     }

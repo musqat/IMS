@@ -66,8 +66,10 @@ class UserControllerTest {
     @Test
     @DisplayName("회원가입 실패 - 입력값 오류")
     void register_invalidInput() throws Exception {
+        // given
         RegisterRequest request = new RegisterRequest("", "password1", "테스트회사");
 
+        // when & then
         mockMvc.perform(post("/api/v1/users/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -164,6 +166,7 @@ class UserControllerTest {
     @Test
     @DisplayName("비밀번호 변경 실패 - 미인증 401")
     void updatePassword_unauthorized() throws Exception {
+        // when & then
         mockMvc.perform(patch("/api/v1/users/me/password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new PasswordUpdateRequest("oldPw1234", "newPw5678"))))
@@ -176,10 +179,12 @@ class UserControllerTest {
     @Test
     @DisplayName("로그아웃 성공 - Bearer 토큰만 서비스로 전달된다")
     void logout_success() throws Exception {
+        // when
         mockMvc.perform(post("/api/v1/users/logout")
                         .header("Authorization", "Bearer refreshToken"))
                 .andExpect(status().isOk());
 
+        // then
         // "Bearer " 접두사가 제거된 값이 넘어가야 한다
         then(userService).should().logout("refreshToken");
     }
@@ -187,16 +192,19 @@ class UserControllerTest {
     @Test
     @DisplayName("로그아웃 실패 - Bearer 접두사가 없으면 401")
     void logout_missingBearerPrefix() throws Exception {
+        // when
         mockMvc.perform(post("/api/v1/users/logout")
                         .header("Authorization", "refreshToken"))
                 .andExpect(status().isUnauthorized());
 
+        // then
         then(userService).should(never()).logout(any());
     }
 
     @Test
     @DisplayName("로그아웃 실패 - Authorization 헤더가 없으면 401")
     void logout_missingHeader() throws Exception {
+        // when & then
         mockMvc.perform(post("/api/v1/users/logout"))
                 .andExpect(status().isUnauthorized());
     }
@@ -204,10 +212,12 @@ class UserControllerTest {
     @Test
     @DisplayName("토큰 재발급 실패 - Bearer 접두사가 없으면 401")
     void refresh_missingBearerPrefix() throws Exception {
+        // when
         mockMvc.perform(post("/api/v1/users/refresh")
                         .header("Authorization", "refreshToken"))
                 .andExpect(status().isUnauthorized());
 
+        // then
         then(userService).should(never()).refresh(any());
     }
 

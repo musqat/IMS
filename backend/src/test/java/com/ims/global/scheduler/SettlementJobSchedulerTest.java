@@ -41,9 +41,11 @@ class SettlementJobSchedulerTest {
     @Test
     @DisplayName("cron은 00:05에 Asia/Seoul 기준으로 실행된다")
     void scheduledAnnotation_usesKstZone() throws Exception {
+        // when
         Method method = SettlementJobScheduler.class.getMethod("runSettlementJob");
         Scheduled scheduled = method.getAnnotation(Scheduled.class);
 
+        // then
         assertThat(scheduled).isNotNull();
         assertThat(scheduled.cron()).isEqualTo("0 5 0 * * *");
         // zone이 비어 있으면 JVM 기본 타임존(배포 환경에서는 UTC)을 따른다

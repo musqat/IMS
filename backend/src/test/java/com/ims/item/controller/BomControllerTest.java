@@ -100,6 +100,7 @@ class BomControllerTest {
     @Test
     @DisplayName("BOM 삭제 성공")
     void deleteBom_success() throws Exception {
+        // when & then
         mockMvc.perform(delete("/api/v1/items/1/bom/1")
                         .with(authentication(auth())))
                 .andExpect(status().isOk());

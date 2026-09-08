@@ -108,11 +108,14 @@ class InventoryConcurrencyTest {
     @Test
     @DisplayName("동시 출고 - 차감이 유실되지 않는다")
     void adjustOut_concurrent_noLostUpdate() throws InterruptedException {
+        // given
         ConcurrentResult result = runConcurrently(THREAD_COUNT, this::outbound);
 
+        // when
         int expectedSuccess = INITIAL_STOCK / DEDUCT_PER_THREAD;          // 3
         int finalStock = currentStock();
 
+        // then
         // 예상 밖 실패를 먼저 본다. 아래 수량이 틀린 원인이 여기 있을 수 있다
         assertThat(result.unexpected()).isEmpty();
         assertThat(result.success()).isEqualTo(expectedSuccess);
@@ -128,13 +131,16 @@ class InventoryConcurrencyTest {
     @Test
     @DisplayName("동시 출고 - 성공 건수만큼만 이력이 남는다")
     void adjustOut_concurrent_historyMatchesStock() throws InterruptedException {
+        // given
         ConcurrentResult result = runConcurrently(THREAD_COUNT, this::outbound);
 
+        // when
         // setUp이 이력을 전부 지우므로 남은 건 이 테스트가 만든 것뿐이다
         List<InventoryHistory> histories = inventoryHistoryRepository.findAll();
         int deltaSum = histories.stream().mapToInt(InventoryHistory::getDelta).sum();
         int finalStock = currentStock();
 
+        // then
         assertThat(result.unexpected()).isEmpty();
         assertThat(histories).hasSize(result.success());
         assertThat(histories).allMatch(h -> h.getType() == InventoryHistoryType.OUT);

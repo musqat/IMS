@@ -128,6 +128,7 @@ class ItemControllerTest {
     @Test
     @DisplayName("품목 삭제 성공")
     void deleteItem_success() throws Exception {
+        // when & then
         mockMvc.perform(delete("/api/v1/items/1")
                         .with(authentication(auth())))
                 .andExpect(status().isOk());

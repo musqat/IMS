@@ -66,6 +66,7 @@ class ProductionGlobalControllerTest {
     @Test
     @DisplayName("상태 필터 조회 - status 파라미터 누락 시 400")
     void getRecordsByStatus_missingStatusParam_returns400() throws Exception {
+        // when & then
         mockMvc.perform(get("/api/v1/productions")
                         .with(authentication(auth(1L))))
                 .andExpect(status().isBadRequest());
@@ -107,6 +108,7 @@ class ProductionGlobalControllerTest {
     @Test
     @DisplayName("인증 없이 카운트 조회 시 401")
     void getCounts_unauthenticated_returns401() throws Exception {
+        // when & then
         mockMvc.perform(get("/api/v1/productions/counts"))
                 .andExpect(status().isUnauthorized());
     }

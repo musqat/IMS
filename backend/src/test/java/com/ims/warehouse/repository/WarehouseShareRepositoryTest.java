@@ -50,11 +50,14 @@ class WarehouseShareRepositoryTest {
     @Test
     @DisplayName("공유받은 창고 목록 조회")
     void findAllBySharedWithId_success() {
+        // given
         warehouseShareRepository.save(WarehouseShare.builder()
                 .warehouse(warehouse).sharedWith(guest).permission(SharePermission.VIEW).build());
 
+        // when
         List<WarehouseShare> result = warehouseShareRepository.findAllBySharedWithId(guest.getId());
 
+        // then
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getWarehouse().getId()).isEqualTo(warehouse.getId());
     }
@@ -62,12 +65,15 @@ class WarehouseShareRepositoryTest {
     @Test
     @DisplayName("특정 창고 + 특정 유저의 공유 권한 조회 성공")
     void findByWarehouseIdAndSharedWithId_success() {
+        // given
         warehouseShareRepository.save(WarehouseShare.builder()
                 .warehouse(warehouse).sharedWith(guest).permission(SharePermission.FULL).build());
 
+        // when
         Optional<WarehouseShare> result = warehouseShareRepository
                 .findByWarehouseIdAndSharedWithId(warehouse.getId(), guest.getId());
 
+        // then
         assertThat(result).isPresent();
         assertThat(result.get().getPermission()).isEqualTo(SharePermission.FULL);
     }
@@ -75,9 +81,11 @@ class WarehouseShareRepositoryTest {
     @Test
     @DisplayName("특정 창고 + 특정 유저의 공유 권한 조회 실패 - 없는 경우")
     void findByWarehouseIdAndSharedWithId_notFound() {
+        // when
         Optional<WarehouseShare> result = warehouseShareRepository
                 .findByWarehouseIdAndSharedWithId(warehouse.getId(), guest.getId());
 
+        // then
         assertThat(result).isEmpty();
     }
 }

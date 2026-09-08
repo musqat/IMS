@@ -40,35 +40,44 @@ class ItemRepositoryTest {
     @Test
     @DisplayName("소유자 기준 품목 전체 조회")
     void findAllByOwnerId_success() {
+        // given
         itemRepository.save(Item.builder().owner(owner).itemCode("A-001").name("완성품A").type(ItemType.PRODUCT).build());
         itemRepository.save(Item.builder().owner(owner).itemCode("B-001").name("부품B").type(ItemType.PART).build());
 
+        // when
         List<Item> result = itemRepository.findAllByOwnerId(owner.getId());
 
+        // then
         assertThat(result).hasSize(2);
     }
 
     @Test
     @DisplayName("itemCode 중복 여부 - true")
     void existsByOwnerIdAndItemCode_true() {
+        // given
         itemRepository.save(Item.builder().owner(owner).itemCode("A-001").name("완성품A").type(ItemType.PRODUCT).build());
 
+        // when & then
         assertThat(itemRepository.existsByOwnerIdAndItemCode(owner.getId(), "A-001")).isTrue();
     }
 
     @Test
     @DisplayName("itemCode 중복 여부 - false")
     void existsByOwnerIdAndItemCode_false() {
+        // when & then
         assertThat(itemRepository.existsByOwnerIdAndItemCode(owner.getId(), "A-001")).isFalse();
     }
 
     @Test
     @DisplayName("owner + itemCode로 단건 조회 성공")
     void findByOwnerIdAndItemCode_success() {
+        // given
         itemRepository.save(Item.builder().owner(owner).itemCode("A-001").name("완성품A").type(ItemType.PRODUCT).build());
 
+        // when
         Optional<Item> result = itemRepository.findByOwnerIdAndItemCode(owner.getId(), "A-001");
 
+        // then
         assertThat(result).isPresent();
         assertThat(result.get().getName()).isEqualTo("완성품A");
     }
@@ -76,12 +85,15 @@ class ItemRepositoryTest {
     @Test
     @DisplayName("owner + itemCode로 단건 조회 실패 - 다른 owner의 동일 코드는 조회되지 않음")
     void findByOwnerIdAndItemCode_differentOwner() {
+        // given
         User other = userRepository.save(User.builder()
                 .email("other@test.com").password("pw").companyName("다른회사").companyCode("9999999999").build());
         itemRepository.save(Item.builder().owner(other).itemCode("A-001").name("타사품목").type(ItemType.PART).build());
 
+        // when
         Optional<Item> result = itemRepository.findByOwnerIdAndItemCode(owner.getId(), "A-001");
 
+        // then
         assertThat(result).isEmpty();
     }
 }

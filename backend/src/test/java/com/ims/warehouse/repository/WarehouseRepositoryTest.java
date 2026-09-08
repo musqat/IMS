@@ -38,24 +38,30 @@ class WarehouseRepositoryTest {
     @Test
     @DisplayName("소유자 기준 창고 전체 조회")
     void findAllByOwnerId_success() {
+        // given
         warehouseRepository.save(Warehouse.builder().owner(owner).name("창고A").location("서울").build());
         warehouseRepository.save(Warehouse.builder().owner(owner).name("창고B").location("부산").build());
 
+        // when
         List<Warehouse> result = warehouseRepository.findAllByOwnerId(owner.getId());
 
+        // then
         assertThat(result).hasSize(2);
     }
 
     @Test
     @DisplayName("소유자 기준 창고 조회 - 다른 소유자 결과 미포함")
     void findAllByOwnerId_excludesOtherOwner() {
+        // given
         User other = userRepository.save(User.builder()
                 .email("other@test.com").password("pw").companyName("다른회사").companyCode("9999999999").build());
         warehouseRepository.save(Warehouse.builder().owner(owner).name("내 창고").location("서울").build());
         warehouseRepository.save(Warehouse.builder().owner(other).name("남의 창고").location("부산").build());
 
+        // when
         List<Warehouse> result = warehouseRepository.findAllByOwnerId(owner.getId());
 
+        // then
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getName()).isEqualTo("내 창고");
     }

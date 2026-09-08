@@ -79,6 +79,7 @@ class WarehouseControllerTest {
     @Test
     @DisplayName("창고 생성 실패 - 입력값 오류")
     void create_invalidInput() throws Exception {
+        // when & then
         mockMvc.perform(post("/api/v1/warehouses")
                         .with(authentication(auth(1L)))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -115,10 +116,12 @@ class WarehouseControllerTest {
     @Test
     @DisplayName("창고 삭제 성공")
     void delete_success() throws Exception {
+        // when
         mockMvc.perform(delete("/api/v1/warehouses/1")
                         .with(authentication(auth(1L))))
                 .andExpect(status().isOk());
 
+        // then
         then(warehouseService).should().deleteWarehouse(1L, 1L);
     }
 
@@ -169,11 +172,13 @@ class WarehouseControllerTest {
     @Test
     @DisplayName("공유 회수 성공")
     void revoke_success() throws Exception {
+        // when
         mockMvc.perform(delete("/api/v1/warehouses/1/shares")
                         .with(authentication(auth(1L)))
                         .param("companyCode", "2000000001"))
                 .andExpect(status().isOk());
 
+        // then
         then(warehouseShareService).should().revoke(1L, 1L, "2000000001");
     }
 
