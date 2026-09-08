@@ -48,41 +48,51 @@ class BomRepositoryTest {
     @Test
     @DisplayName("parent 기준 직접 하위 BOM 목록 조회")
     void findAllByParentId_success() {
+        // given
         bomRepository.save(Bom.builder().parent(itemA).child(itemB).quantity(1).build());
         bomRepository.save(Bom.builder().parent(itemA).child(itemC).quantity(3).build());
 
+        // when
         List<Bom> result = bomRepository.findAllByParentId(itemA.getId());
 
+        // then
         assertThat(result).hasSize(2);
     }
 
     @Test
     @DisplayName("parent + child 쌍 중복 여부 - true")
     void existsByParentIdAndChildId_true() {
+        // given
         bomRepository.save(Bom.builder().parent(itemA).child(itemB).quantity(1).build());
 
+        // when & then
         assertThat(bomRepository.existsByParentIdAndChildId(itemA.getId(), itemB.getId())).isTrue();
     }
 
     @Test
     @DisplayName("parent + child 쌍 중복 여부 - false")
     void existsByParentIdAndChildId_false() {
+        // when & then
         assertThat(bomRepository.existsByParentIdAndChildId(itemA.getId(), itemB.getId())).isFalse();
     }
 
     @Test
     @DisplayName("parent 참조 존재 여부")
     void existsByParentId_true() {
+        // given
         bomRepository.save(Bom.builder().parent(itemA).child(itemB).quantity(1).build());
 
+        // when & then
         assertThat(bomRepository.existsByParentId(itemA.getId())).isTrue();
     }
 
     @Test
     @DisplayName("child 참조 존재 여부")
     void existsByChildId_true() {
+        // given
         bomRepository.save(Bom.builder().parent(itemA).child(itemB).quantity(1).build());
 
+        // when & then
         assertThat(bomRepository.existsByChildId(itemB.getId())).isTrue();
     }
 }

@@ -117,6 +117,7 @@ class InventoryControllerTest {
     @Test
     @DisplayName("입고 실패 - 미인증 401 Unauthorized")
     void adjustIn_unauthorized() throws Exception {
+        // when & then
         mockMvc.perform(post("/api/v1/warehouses/1/inventories/10/in")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new InboundRequest(50, "입고 메모"))))
@@ -238,6 +239,7 @@ class InventoryControllerTest {
     @Test
     @DisplayName("안전재고 수정 실패 - 미인증 401")
     void updateSafetyStock_unauthorized() throws Exception {
+        // when & then
         mockMvc.perform(patch("/api/v1/warehouses/1/inventories/10/safety-stock")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new SafetyStockUpdateRequest(30))))
@@ -262,6 +264,7 @@ class InventoryControllerTest {
     @Test
     @DisplayName("부족 재고 분석 조회 실패 - 미인증 401")
     void getShortageAnalysis_unauthorized() throws Exception {
+        // when & then
         mockMvc.perform(get("/api/v1/warehouses/1/inventories/shortage-analysis"))
                 .andExpect(status().isUnauthorized());
     }
@@ -290,6 +293,7 @@ class InventoryControllerTest {
     @Test
     @DisplayName("이력 Export 조회 실패 - 시작일이 종료일보다 늦으면 400")
     void getWarehouseHistory_fromAfterTo_badRequest() throws Exception {
+        // when
         mockMvc.perform(get("/api/v1/warehouses/1/inventories/histories")
                         .param("types", "IN")
                         .param("from", "2026-08-10")
@@ -297,6 +301,7 @@ class InventoryControllerTest {
                         .with(authentication(auth(1L))))
                 .andExpect(status().isBadRequest());
 
+        // then
         then(inventoryService).should(never())
                 .getWarehouseHistory(any(), any(), any(), any(), any());
     }
@@ -304,6 +309,7 @@ class InventoryControllerTest {
     @Test
     @DisplayName("이력 Export 조회 실패 - 조회 기간이 1년을 넘으면 400")
     void getWarehouseHistory_rangeTooLarge_badRequest() throws Exception {
+        // when
         mockMvc.perform(get("/api/v1/warehouses/1/inventories/histories")
                         .param("types", "IN")
                         .param("from", "2025-01-01")
@@ -311,6 +317,7 @@ class InventoryControllerTest {
                         .with(authentication(auth(1L))))
                 .andExpect(status().isBadRequest());
 
+        // then
         then(inventoryService).should(never())
                 .getWarehouseHistory(any(), any(), any(), any(), any());
     }
@@ -336,6 +343,7 @@ class InventoryControllerTest {
     @Test
     @DisplayName("이력 Export 조회 실패 - 미인증 401")
     void getWarehouseHistory_unauthorized() throws Exception {
+        // when & then
         mockMvc.perform(get("/api/v1/warehouses/1/inventories/histories")
                         .param("from", "2026-08-01")
                         .param("to", "2026-08-10"))

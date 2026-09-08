@@ -762,19 +762,20 @@ class InventoryServiceTest {
     @Test
     @DisplayName("소진 예측 - 조회 권한을 검증한다")
     void getDepletionAnalysis_checksViewAccess() {
+        // given
         LocalDate from = LocalDate.of(2026, 5, 1);
         LocalDate to = from.plusDays(89);
-
 
         willThrow(new ImsException(ErrorCode.WAREHOUSE_ACCESS_DENIED))
                 .given(warehouseShareService).checkViewAccess(999L, warehouse.getId());
 
+        // when & then
         assertThatThrownBy(() -> inventoryService.getDepletionAnalysis(
                 999L, warehouse.getId(), from, to))
                 .isInstanceOf(ImsException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WAREHOUSE_ACCESS_DENIED);
 
-// 권한 실패 시 DB를 건드리면 안 된다
+        // 권한 실패 시 DB를 건드리면 안 된다
         then(inventoryRepository).should(never()).findAllByWarehouseId(any());
     }
 

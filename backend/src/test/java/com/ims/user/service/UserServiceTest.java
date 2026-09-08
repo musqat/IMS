@@ -245,6 +245,7 @@ class UserServiceTest {
     @Test
     @DisplayName("비밀번호 변경 성공")
     void updatePassword_success() {
+        // given
         User user = User.builder().id(1L).email("test@test.com").password("encodedOld")
                 .companyName("테스트회사").companyCode("1000000001").build();
         given(userRepository.findById(1L)).willReturn(Optional.of(user));
@@ -252,6 +253,7 @@ class UserServiceTest {
         given(passwordEncoder.matches("newPw", "encodedOld")).willReturn(false);
         given(passwordEncoder.encode("newPw")).willReturn("encodedNew");
 
+        // when & then
         assertThatNoException().isThrownBy(() -> userService.updatePassword(1L, "oldPw", "newPw"));
     }
 

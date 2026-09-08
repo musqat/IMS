@@ -193,8 +193,10 @@ class WarehouseShareServiceTest {
     @Test
     @DisplayName("FULL 권한 검증 성공 - 소유자")
     void checkFullAccess_owner() {
+        // given
         given(warehouseRepository.findById(1L)).willReturn(Optional.of(warehouse));
 
+        // when & then
         assertThatNoException().isThrownBy(() -> warehouseShareService.checkFullAccess(1L, 1L));
     }
 
@@ -229,11 +231,13 @@ class WarehouseShareServiceTest {
     @Test
     @DisplayName("VIEW 권한 검증 성공 - 공유받은 유저")
     void checkViewAccess_shared() {
+        // given
         WarehouseShare share = WarehouseShare.builder()
                 .id(1L).warehouse(warehouse).sharedWith(target).permission(SharePermission.VIEW).build();
         given(warehouseRepository.findById(1L)).willReturn(Optional.of(warehouse));
         given(warehouseShareRepository.findByWarehouseIdAndSharedWithId(1L, 2L)).willReturn(Optional.of(share));
 
+        // when & then
         assertThatNoException().isThrownBy(() -> warehouseShareService.checkViewAccess(2L, 1L));
     }
 
@@ -339,6 +343,7 @@ class WarehouseShareServiceTest {
     @Test
     @DisplayName("공유받은 창고 목록 - 소유자가 비활성화한 창고는 제외한다")
     void getSharedWarehouses_excludesInactive() {
+        // given
         // 남이 비활성화한 창고가 내 공유 목록에 남으면 클릭했을 때 쓰기가 막혀 혼란스럽다
         Warehouse closed = Warehouse.builder()
                 .id(99L).owner(owner).name("닫은창고").build();
@@ -354,8 +359,10 @@ class WarehouseShareServiceTest {
         given(warehouseShareRepository.findAllBySharedWithId(target.getId()))
                 .willReturn(List.of(activeShare, closedShare));
 
+        // when
         List<WarehouseShareResponse> result = warehouseShareService.getSharedWarehouses(target.getId());
 
+        // then
         assertThat(result).hasSize(1);
         assertThat(result.get(0).warehouseId()).isEqualTo(warehouse.getId());
     }

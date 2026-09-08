@@ -84,14 +84,15 @@ class InventoryRepositoryTest {
     @Test
     @DisplayName("재고 목록 조회 시 item을 함께 로딩해 행 수와 무관하게 쿼리 수가 고정된다")
     void findAll_withSpecification_doesNotTriggerNPlusOne() {
+        // given
         Specification<Inventory> spec = (root, query, cb) ->
                 cb.equal(root.get("warehouse").get("id"), warehouse.getId());
 
         Statistics stats = statistics();
         stats.clear();
 
+        // when
         Page<Inventory> page = inventoryRepository.findAll(spec, PageRequest.of(0, 10));
-
         // 연관 엔티티 접근 — EntityGraph가 없으면 여기서 행마다 SELECT가 나간다
         page.getContent().forEach(inv -> {
             inv.getItem().getItemCode();
@@ -99,6 +100,7 @@ class InventoryRepositoryTest {
             inv.getItem().getType();
         });
 
+        // then
         assertThat(page.getContent()).hasSize(5);
         // 목록 조회 1회로 끝나야 한다.
         // 결과가 페이지 크기보다 작으면 Spring Data가 count 쿼리를 생략하므로 1회다.
@@ -109,11 +111,14 @@ class InventoryRepositoryTest {
     @Test
     @DisplayName("EntityGraph를 적용해도 페이지네이션 totalElements는 정확하다")
     void findAll_withSpecification_countIsAccurate() {
+        // given
         Specification<Inventory> spec = (root, query, cb) ->
                 cb.equal(root.get("warehouse").get("id"), warehouse.getId());
 
+        // when
         Page<Inventory> firstPage = inventoryRepository.findAll(spec, PageRequest.of(0, 2));
 
+        // then
         assertThat(firstPage.getContent()).hasSize(2);
         assertThat(firstPage.getTotalElements()).isEqualTo(5);
         assertThat(firstPage.getTotalPages()).isEqualTo(3);

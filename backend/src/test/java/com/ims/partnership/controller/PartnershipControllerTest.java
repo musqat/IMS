@@ -172,6 +172,7 @@ class PartnershipControllerTest {
     @Test
     @DisplayName("파트너십 해제 실패 - 미인증 401")
     void removePartnership_unauthorized() throws Exception {
+        // when & then
         mockMvc.perform(delete("/api/v1/partnerships/1"))
                 .andExpect(status().isUnauthorized());
     }

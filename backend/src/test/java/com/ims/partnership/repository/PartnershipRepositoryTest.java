@@ -43,11 +43,14 @@ class PartnershipRepositoryTest {
     @Test
     @DisplayName("초대 토큰으로 조회 성공")
     void findByInviteToken_success() {
+        // given
         partnershipRepository.save(Partnership.builder()
                 .main(main).sub(sub).status(PartnershipStatus.PENDING).inviteToken("token-uuid").build());
 
+        // when
         Optional<Partnership> result = partnershipRepository.findByInviteToken("token-uuid");
 
+        // then
         assertThat(result).isPresent();
         assertThat(result.get().getMain().getId()).isEqualTo(main.getId());
     }
@@ -55,34 +58,42 @@ class PartnershipRepositoryTest {
     @Test
     @DisplayName("초대 토큰으로 조회 실패 - 없는 토큰")
     void findByInviteToken_notFound() {
+        // when
         Optional<Partnership> result = partnershipRepository.findByInviteToken("invalid-token");
 
+        // then
         assertThat(result).isEmpty();
     }
 
     @Test
     @DisplayName("중복 관계 존재 여부 - true")
     void existsByMainIdAndSubId_true() {
+        // given
         partnershipRepository.save(Partnership.builder()
                 .main(main).sub(sub).status(PartnershipStatus.PENDING).inviteToken("token-uuid").build());
 
+        // when & then
         assertThat(partnershipRepository.existsByMainIdAndSubId(main.getId(), sub.getId())).isTrue();
     }
 
     @Test
     @DisplayName("중복 관계 존재 여부 - false")
     void existsByMainIdAndSubId_false() {
+        // when & then
         assertThat(partnershipRepository.existsByMainIdAndSubId(main.getId(), sub.getId())).isFalse();
     }
 
     @Test
     @DisplayName("본사 기준 ACCEPTED 하청 목록 조회")
     void findAllByMainIdAndStatus_accepted() {
+        // given
         partnershipRepository.save(Partnership.builder()
                 .main(main).sub(sub).status(PartnershipStatus.ACCEPTED).inviteToken("token-uuid").build());
 
+        // when
         List<Partnership> result = partnershipRepository.findAllByMainIdAndStatus(main.getId(), PartnershipStatus.ACCEPTED);
 
+        // then
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getSub().getId()).isEqualTo(sub.getId());
     }
@@ -90,11 +101,14 @@ class PartnershipRepositoryTest {
     @Test
     @DisplayName("하청 기준 ACCEPTED 본사 목록 조회")
     void findAllBySubIdAndStatus_accepted() {
+        // given
         partnershipRepository.save(Partnership.builder()
                 .main(main).sub(sub).status(PartnershipStatus.ACCEPTED).inviteToken("token-uuid").build());
 
+        // when
         List<Partnership> result = partnershipRepository.findAllBySubIdAndStatus(sub.getId(), PartnershipStatus.ACCEPTED);
 
+        // then
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getMain().getId()).isEqualTo(main.getId());
     }
@@ -102,9 +116,11 @@ class PartnershipRepositoryTest {
     @Test
     @DisplayName("ACCEPTED 관계 존재 여부 - true")
     void existsByMainIdAndSubIdAndStatus_true() {
+        // given
         partnershipRepository.save(Partnership.builder()
                 .main(main).sub(sub).status(PartnershipStatus.ACCEPTED).inviteToken("token-uuid").build());
 
+        // when & then
         assertThat(partnershipRepository.existsByMainIdAndSubIdAndStatus(
                 main.getId(), sub.getId(), PartnershipStatus.ACCEPTED)).isTrue();
     }
@@ -112,9 +128,11 @@ class PartnershipRepositoryTest {
     @Test
     @DisplayName("ACCEPTED 관계 존재 여부 - PENDING이면 false")
     void existsByMainIdAndSubIdAndStatus_pending() {
+        // given
         partnershipRepository.save(Partnership.builder()
                 .main(main).sub(sub).status(PartnershipStatus.PENDING).inviteToken("token-uuid").build());
 
+        // when & then
         assertThat(partnershipRepository.existsByMainIdAndSubIdAndStatus(
                 main.getId(), sub.getId(), PartnershipStatus.ACCEPTED)).isFalse();
     }

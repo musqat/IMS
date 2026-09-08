@@ -225,31 +225,37 @@ class PartnershipServiceTest {
     @Test
     @DisplayName("파트너 관계 확인 - main→sub 방향")
     void isPartner_mainToSub() {
+        // given
         given(partnershipRepository.existsByMainIdAndSubIdAndStatus(1L, 2L, PartnershipStatus.ACCEPTED))
                 .willReturn(true);
 
+        // when & then
         assertThat(partnershipService.isPartner(1L, 2L)).isTrue();
     }
 
     @Test
     @DisplayName("파트너 관계 확인 - sub→main 방향 (역방향도 파트너)")
     void isPartner_subToMain() {
+        // given
         given(partnershipRepository.existsByMainIdAndSubIdAndStatus(2L, 1L, PartnershipStatus.ACCEPTED))
                 .willReturn(false);
         given(partnershipRepository.existsByMainIdAndSubIdAndStatus(1L, 2L, PartnershipStatus.ACCEPTED))
                 .willReturn(true);
 
+        // when & then
         assertThat(partnershipService.isPartner(2L, 1L)).isTrue();
     }
 
     @Test
     @DisplayName("파트너 관계 없음")
     void isPartner_notPartner() {
+        // given
         given(partnershipRepository.existsByMainIdAndSubIdAndStatus(1L, 2L, PartnershipStatus.ACCEPTED))
                 .willReturn(false);
         given(partnershipRepository.existsByMainIdAndSubIdAndStatus(2L, 1L, PartnershipStatus.ACCEPTED))
                 .willReturn(false);
 
+        // when & then
         assertThat(partnershipService.isPartner(1L, 2L)).isFalse();
     }
 
@@ -449,6 +455,7 @@ class PartnershipServiceTest {
     @Test
     @DisplayName("초대 - 만료된 초대가 있으면 토큰을 새로 발급한다")
     void invite_expiredInvite_reissues() {
+        // given
         // 만료된 PENDING이 남아 있으면 UK 때문에 새 초대를 만들 수 없다.
         // 중복으로 막으면 그 관계는 영영 초대할 수 없게 된다
         Partnership expired = Partnership.builder()
@@ -463,8 +470,10 @@ class PartnershipServiceTest {
         given(partnershipRepository.findByMainIdAndSubId(mainUser.getId(), subUser.getId()))
                 .willReturn(Optional.of(expired));
 
+        // when
         InviteResponse result = partnershipService.invite(mainUser.getId(), new InviteRequest("2000000001"));
 
+        // then
         assertThat(result.inviteToken()).isNotEqualTo("old-token");
         assertThat(expired.getInviteExpiresAt()).isAfter(LocalDateTime.now());
     }
