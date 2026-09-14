@@ -21,6 +21,7 @@ configurations {
 }
 
 ext['tomcat.version'] = '10.1.59'
+ext['netty.version'] = '4.1.138.Final'
 
 repositories {
 	mavenCentral()
