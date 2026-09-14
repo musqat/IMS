@@ -12,7 +12,7 @@
 - [기동이 not-null 위반으로 죽었다](#기동이-not-null-위반으로-죽었다) — 빌더 기본값
 - [대시보드 KPI가 항상 0이었다](#대시보드-kpi가-항상-0이었다) — record 파생 메서드
 - [409가 열 가지 원인을 가렸다](#409가-열-가지-원인을-가렸다) — 응답에 코드가 없었다
-- [CI 첫 실행이 Permission denied](#ci-첫-실행이-permission-denied) — 실행 비트
+- [CI를 붙이기 전에 실행 비트가 빠진 걸 찾았다](#ci를-붙이기-전에-실행-비트가-빠진-걸-찾았다) — 실행 비트
 - [배포가 14분 만에 타임아웃됐다](#배포가-14분-만에-타임아웃됐다) — 원인은 남아 있다
 
 <br>
@@ -53,7 +53,7 @@ SQLState `23503`은 외래 키 위반이다. 중복 키(`23505`)와 다른 코�
 `DUPLICATE_RESOURCE`로 매핑했다.
 
 `DataIntegrityViolationException`은 중복 키와 FK 위반을 **둘 다** 포함한다.
-Spring이 JDBC 예외를 이 하나로 묶기 때문에 매핑을 하나만 두면 원인이 뭉개진다.
+Spring이 JDBC 예외를 이 하나로 묶는다. 매핑을 하나만 두면 원인이 뭉개진다.
 
 `해결`
 
@@ -169,7 +169,7 @@ public void recordFailure(String email) {
 }
 ```
 
-**잠금을 TTL로 푼다.** 해제 시각을 따로 저장하고 배치로 검사하는 대신 키가 스스로 사라지게 했다. 실패할 때마다 TTL을 다시 걸어서 잠긴 뒤에도 계속 두드리면 잠금이 연장된다.
+**잠금을 TTL로 푼다.** 해제 시각을 따로 저장하고 배치로 검사하는 대신 키에 만료 시간을 걸었다. 실패할 때마다 TTL을 다시 걸어서 잠긴 뒤에도 계속 두드리면 잠금이 연장된다.
 
 **계정이 없어도 센다.** 존재하는 계정만 잠그면 잠기는지 여부가 곧 계정 존재 여부가 된다. 사용자 열거를 막으려고 응답 문구를 통일해 뒀는데 잠금이 그 구분을 되살린다.
 
@@ -277,7 +277,7 @@ DB에 생산 기록이 75건인데 대시보드의 전체 건수가 0으로 나�
 API 응답을 그대로 받아 보니 필드 하나가 없었다.
 
 ```json
-{"settled":45,"pending":5,"cancelled":20}
+{"pending":5,"settled":70,"cancelled":0,"anomaly":20}
 ```
 
 프론트가 `total`을 읽는데 응답에 그 키가 없다. `undefined`가 화면에서 0으로 렌더된다.
@@ -285,8 +285,8 @@ API 응답을 그대로 받아 보니 필드 하나가 없었다.
 서버에서 `total`은 이렇게 만들고 있었다.
 
 ```java
-record Counts(int settled, int pending, int cancelled) {
-    public int total() { return settled + pending + cancelled; }
+public record ProductionCountsResponse(long pending, long settled, long cancelled, long anomaly) {
+    public long total() { return pending + settled + cancelled; }
 }
 ```
 
@@ -359,7 +359,7 @@ public record ApiResponse<T>(String code, String message, T data)
 
 <br>
 
-## CI 첫 실행이 Permission denied
+## CI를 붙이기 전에 실행 비트가 빠진 걸 찾았다
 
 <details>
 <summary><b>Windows에는 실행 비트 개념이 없다.</b> 로컬 테스트로는 안 걸린다</summary>
@@ -368,21 +368,18 @@ public record ApiResponse<T>(String code, String message, T data)
 
 `문제`
 
-CI를 처음 붙였더니 백엔드 잡의 첫 스텝이 죽었다.
-
-```
-./gradlew: Permission denied
-Error: Process completed with exit code 126
-```
+CI를 붙이기 직전, 백엔드 잡이 부를 `./gradlew`가 리눅스에서 실행되지 않는 상태였다.
 
 `추적`
 
-러너에는 파일이 있는데 실행이 안 됐다. git이 저장한 모드를 봤다.
+러너는 git에 저장된 파일 모드대로 체크아웃한다. 저장된 모드를 봤다.
 
 ```
 git ls-files -s backend/gradlew
 100644 ...    ← 실행 비트 없음
 ```
+
+이대로 올리면 첫 스텝이 `./gradlew: Permission denied`로 멈춘다.
 
 `원인`
 
@@ -391,11 +388,13 @@ git은 파일 모드 중 실행 비트만 저장한다. Windows 파일 시스템
 
 `해결`
 
+CI를 추가한 커밋(`dfc6260`)에 실행 비트를 같이 넣었다. 첫 CI 실행은 `./gradlew test`를 거쳐 통과했다.
+
 ```bash
 git update-index --chmod=+x backend/gradlew
 ```
 
-같은 실행에서 `npm audit`도 처음 돌려 봤다. 19건이 나왔고 메이저 업그레이드 없이 고쳐지는
+CI를 붙이고 나서 `npm audit`도 처음 돌려 봤다. 19건이 나왔고 메이저 업그레이드 없이 고쳐지는
 12건을 적용해 7건이 남았다. 남은 것은 Next 14 → 16이 필요해 CI에는 넣지 않았다.
 
 </details>
