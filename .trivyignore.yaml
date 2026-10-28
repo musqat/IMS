@@ -1,0 +1,13 @@
+# Trivy 예외 — CI의 CRITICAL 게이트에만 적용한다
+# 목록 스텝은 예외 없이 전부 출력한다
+vulnerabilities:
+  - id: CVE-2026-47884
+    statement: >-
+      XsltView 경로 제한 미비. 이 앱은 뷰 리졸버와 템플릿 엔진을 쓰지 않고
+      컨트롤러 10개가 전부 @RestController다. fix는 Spring Framework 7(Boot 4)뿐이다.
+    expired_at: 2027-01-31
+  - id: CVE-2026-47890
+    statement: >-
+      뷰와 함께 쓰는 SSE 스트림 손상. SseEmitter와 text/event-stream 사용처가 없다.
+      fix는 Spring Framework 7(Boot 4)뿐이다.
+    expired_at: 2027-01-31
