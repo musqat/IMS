@@ -41,7 +41,7 @@ IMS는 회사 단위 계정과 초대 기반 Partnership으로 협력사를 연�
 
 **콜드 스타트**
 
-Render 무료 인스턴스는 15분간 요청이 없으면 슬립됩니다. 깨어나 JVM이 기동하기까지 약 160초가 걸립니다.
+Render 무료 인스턴스는 15분간 요청이 없으면 슬립됩니다. 깨어나 JVM이 기동하기까지 65~192초가 걸립니다(측정값, 편차가 큽니다).
 
 외부 스케줄러가 10분마다 헬스 체크를 보내 KST 08:00~23:59와 자정 결산 배치 구간(00시대)을 깨워둡니다. 무료 인스턴스의 월 750시간 한도 때문에 종일 유지하지는 않습니다. 그 밖의 시간대는 첫 요청에서 기동을 기다립니다.
 
@@ -177,7 +177,7 @@ BOM 부품 재고는 단일 IN 쿼리로 일괄 조회하여 N+1 방지.
 
 ## 테스트 전략
 
-TDD로 개발. 총 **409개 테스트** — 백엔드 340 · 프론트 단위 51 · E2E 18.
+TDD로 개발. 총 **411개 테스트** — 백엔드 342 · 프론트 단위 51 · E2E 18.
 백엔드는 JaCoCo 기준 **라인 93.8% / 브랜치 86.8%**
 
 <details>
@@ -300,7 +300,7 @@ IMS/
 │   │       ├── scheduler/   # SettlementBatchConfig, SettlementJobScheduler
 │   │       ├── config/      # RedisConfig, BatchConfig, DataInitializer
 │   │       └── exception/   # ImsException, ErrorCode, GlobalExceptionHandler
-│   └── src/test/            # 단위 · 통합 · 슬라이스 테스트 (340개)
+│   └── src/test/            # 단위 · 통합 · 슬라이스 테스트 (342개)
 │
 ├── frontend/
 │   └── app/

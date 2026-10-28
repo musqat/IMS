@@ -14,6 +14,7 @@
 - [409가 열 가지 원인을 가렸다](#409가-열-가지-원인을-가렸다) — 응답에 코드가 없었다
 - [CI를 붙이기 전에 실행 비트가 빠진 걸 찾았다](#ci를-붙이기-전에-실행-비트가-빠진-걸-찾았다) — 실행 비트
 - [배포가 14분 만에 타임아웃됐다](#배포가-14분-만에-타임아웃됐다) — 원인은 남아 있다
+- [기동이 TLS 핸드셰이크 마지막 단계에서 끊겼다](#기동이-tls-핸드셰이크-마지막-단계에서-끊겼다) — 느린 인스턴스
 
 <br>
 
@@ -474,5 +475,85 @@ validate  22.9  18.8  12.8        평균 18.2초
 
 원인을 못 좁혔으니 고치는 방법도 정하지 못했다. `ddl-auto`를 걷어내는 안은 배포된 스키마에
 맞는 baseline을 정확히 떠야 하고, 근거 없이 손대면 배포 위험만 는다.
+
+</details>
+
+<br>
+
+## 기동이 TLS 핸드셰이크 마지막 단계에서 끊겼다
+
+<details>
+<summary><b>끊기는 지점이 매번 달랐다.</b> 스택 한 줄이 TLS 1.3을 가리켰다</summary>
+
+<br>
+
+`문제`
+
+Supabase 일시정지에서 복구한 뒤에도 기동이 실패했다. DB 연결을 Session pooler로
+바꿨는데 증상이 세 번 바뀌었다.
+
+```
+핸드셰이크 초반    SSL error: Remote host terminated the handshake
+시작 패킷 전송     The connection attempt failed / Broken pipe
+핸드셰이크 끝      SSL error: Broken pipe
+```
+
+`추적`
+
+pooler가 문제인지 앱이 문제인지부터 갈랐다. 자격증명 없이 프로토콜을 직접 쳐서 확인했다.
+
+```
+DNS                 IPv4 3개 (ELB)
+TCP 5432 · 6543     전부 연결
+TLS (SNI 유·무)     전부 TLSv1.3 성립
+IP 3개 × 포트 2개   6/6 성립
+사용자명 postgres                 (ENOIDENTIFIER) no tenant identifier
+사용자명 postgres.<틀린ref>        (ENOTFOUND) tenant/user not found
+사용자명 postgres.<실제ref>        SCRAM 요청 수신
+```
+
+SCRAM을 틀린 비밀번호로 끝까지 진행하니 `28P01 password authentication failed`가
+왔다. pooler가 실제 자격증명과 대조해 답한 것이므로 DB까지 살아 있다.
+
+외부에서는 전 구간이 되고 Render에서만 깨진다. 마지막 스택이 지점을 가리켰다.
+
+```
+Caused by: java.net.SocketException: Broken pipe
+    at ... Finished$T13FinishedProducer.onProduceFinished
+    at ... Finished$T13FinishedConsumer.consume
+    at ... SSLSocketImpl.startHandshake
+```
+
+`T13`은 TLS 1.3이다. 서버 Finished를 소비한 뒤 클라이언트 Finished를 쓰는 순간
+소켓이 죽었다. 핸드셰이크의 마지막 한 걸음이다.
+
+`원인`
+
+같은 로그에 기동 속도가 찍혀 있었다.
+
+```
+Root WebApplicationContext: initialization completed in 40203 ms
+```
+
+로컬에서 2~5초인 단계가 40초다. CPU가 쪼들려 JVM이 핸드셰이크 도중에도 멈춘다.
+협상이 길어지면 상대가 끊고, 끊기는 지점은 그때그때 달라진다.
+
+`해결`
+
+JDBC 클라이언트 TLS를 1.2로 고정했다. pooler는 1.2도 받는다.
+
+```dockerfile
+"-Djdk.tls.client.protocols=TLSv1.2", \
+```
+
+환경변수로 먼저 시험해 기동을 확인한 뒤 `Dockerfile`에 넣었다. 환경변수에만 두면
+서비스를 다시 만들 때 같은 추적을 반복한다.
+
+| 검사 | 결과 |
+|---|---|
+| health | 200 |
+| 로그인 | 200 |
+| 창고 조회 | 200, 2건 |
+| refresh | 200 |
 
 </details>
