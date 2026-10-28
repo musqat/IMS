@@ -17,8 +17,9 @@ WORKDIR /app
 COPY --from=builder /app/build/libs/*.jar app.jar
 EXPOSE 8080
 
-# 메모리 옵션을 이미지에 내재화한다.
+# 메모리 옵션과 TLS 버전을 이미지에 내재화한다.
 ENTRYPOINT ["java", \
   "-XX:MaxRAMPercentage=70.0", \
   "-XX:+ExitOnOutOfMemoryError", \
+  "-Djdk.tls.client.protocols=TLSv1.2", \
   "-jar", "app.jar"]
