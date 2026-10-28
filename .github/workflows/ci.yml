@@ -1,8 +1,6 @@
 name: CI
 
-# PR과 main 푸시에서 테스트·빌드를 돌린다.
-# 로컬에서만 확인하던 것을 기록으로 남기는 게 목적이다.
-
+# PR과 main 푸시에서 테스트·빌드를 돌린다
 on:
   push:
     branches: [main]
@@ -10,7 +8,6 @@ on:
     branches: [main]
 
 # 같은 브랜치에 연속 푸시하면 이전 실행을 취소한다.
-# 어차피 최신 커밋 결과만 의미가 있다.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -19,10 +16,7 @@ jobs:
   backend:
     runs-on: ubuntu-latest
 
-    # 동시성 테스트용 Postgres.
-    # 검증 대상이 비관적 락인데 H2는 락 의미론이 달라 락을 떼도 통과할 수 있다.
-    # 로컬에서는 Docker Desktop과 Testcontainers가 안 맞아 컨테이너를 직접 띄웠는데,
-    # 여기서는 리눅스 러너라 services로 간단히 붙는다.
+    # 동시성 테스트용 Postgres
     services:
       postgres:
         image: postgres:16-alpine
@@ -232,4 +226,5 @@ jobs:
       # CRITICAL만 실패시킨다. HIGH에는 아직 패치가 없는 게 남아 있어 막으면 항상 빨갛다
       # DB는 앞 스텝이 받아둔 것을 다시 쓴다
       - name: CRITICAL 게이트
-        run: docker run --rm -v "$PWD/backend/build/trivy-scan:/scan:ro" -v "$HOME/.cache/trivy:/root/.cache/trivy" aquasec/trivy:0.65.0 rootfs --scanners vuln --severity CRITICAL --ignore-unfixed --exit-code 1 /scan
+        # 예외는 .trivyignore.yaml — 목록 스텝에는 적용하지 않음
+        run: docker run --rm -v "$PWD/backend/build/trivy-scan:/scan:ro" -v "$HOME/.cache/trivy:/root/.cache/trivy" -v "$PWD/.trivyignore.yaml:/.trivyignore.yaml:ro" aquasec/trivy:0.65.0 rootfs --scanners vuln --severity CRITICAL --ignore-unfixed --exit-code 1 --ignorefile /.trivyignore.yaml /scan

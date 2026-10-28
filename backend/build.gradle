@@ -1,7 +1,7 @@
 plugins {
 	id 'java'
 	id 'jacoco'
-	id 'org.springframework.boot' version '3.5.14'
+	id 'org.springframework.boot' version '3.5.16'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -59,10 +59,6 @@ tasks.named('test') {
 
 // 동시성 테스트를 실제 Postgres에서 돌린다.
 // 검증 대상이 비관적 락인데 H2는 MODE=PostgreSQL이어도 락 의미론이 다르다.
-// 기본 test 태스크는 H2 그대로다.
-//
-//   docker compose up -d pgtest
-//   ./gradlew concurrencyTestPg
 tasks.register('concurrencyTestPg', Test) {
 	group = 'verification'
 	description = '동시성 테스트를 실제 Postgres에서 실행 (컨테이너를 미리 띄워야 한다)'
@@ -79,7 +75,7 @@ tasks.register('concurrencyTestPg', Test) {
 	environment 'TEST_DB_DIALECT', 'org.hibernate.dialect.PostgreSQLDialect'
 }
 
-// 커버리지에서 제외할 대상.
+// 커버리지에서 제외할 대상
 // DTO/엔티티/설정은 로직이 없거나 롬복 생성 코드라 수치만 부풀린다.
 def jacocoExcludes = [
 		'**/ImsApplication*',
@@ -103,8 +99,7 @@ jacocoTestReport {
 	}
 }
 
-// 커버리지 하한선. 현재 수치(라인 92.2% / 브랜치 84.3%)보다 조금 낮게 잡아
-// 회귀만 막는다. 수치를 올리는 것이 목적이 아니라 떨어뜨리지 않는 것이 목적이다.
+// 커버리지 하한선
 jacocoTestCoverageVerification {
 	violationRules {
 		rule {
