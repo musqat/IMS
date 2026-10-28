@@ -3,9 +3,9 @@ name: keepalive
 # Render 무료 플랜은 15분 놀면 인스턴스를 내린다. 다시 깨우는 데 1~3분이 걸려
 # 링크를 처음 여는 사람이 흰 화면을 보게 된다. 주기적으로 깨워둔다.
 #
-# 5분 주기인 이유 — GitHub 예약 실행은 정시 보장이 아니라 부하가 몰리면 밀린다.
-# 10분 주기로 두면 밀렸을 때 간격이 15분을 넘겨 결국 내려간다.
-# 공개 저장소라 Actions 사용량 제한이 없어 짧게 잡아도 비용이 없다.
+# 깨우는 일은 cron-job.org(`*/10 0,8-23` KST)가 맡는다. 이쪽은 보조다.
+# GitHub 예약 실행은 정시 보장이 아니다 — 실행 300건을 재보니 창 안 간격 중앙값이
+# 38.7분으로 15분 유휴 기준을 96% 넘겼다. `*/5`로 적어도 그대로 돌지 않는다.
 #
 # 한계 두 가지
 # - 예약 워크플로는 저장소가 60일간 조용하면 자동으로 꺼진다. 커밋이 끊기면 같이 멈춘다
@@ -33,12 +33,13 @@ jobs:
           fi
 
           # --retry는 5xx와 연결 실패에 붙는다
+          # 타임아웃 시 curl 종료 코드가 0이 아니므로 000으로 대체
           code=$(curl -sS -o /dev/null -w '%{http_code}' \
                    --max-time 180 \
                    --retry 3 --retry-delay 20 --retry-connrefused \
-                   "${{ vars.BACKEND_URL }}/api/v1/health")
+                   "${{ vars.BACKEND_URL }}/api/v1/health") || code=000
 
           echo "health -> $code"
+          echo "health -> $code" >> "$GITHUB_STEP_SUMMARY"
 
-          # 200이 아니면 실패로 남긴다. 조용히 넘어가면 몇 주째 안 도는 걸 아무도 모른다
-          [ "$code" = "200" ]
+          # 상태 코드로 잡을 실패시키지 않음 — 장애 알림은 cron-job.org 담당
