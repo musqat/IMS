@@ -20,9 +20,18 @@ spring:
       keepalive-time: 300000       # 5분마다 유휴 커넥션 검증
       idle-timeout: 600000         # 10분
       connection-timeout: 30000
+      # 첫 커넥션 실패를 기동 실패로 보지 않고 이 시간까지 다시 시도한다.
+      # 기본값 1ms는 TLS 핸드셰이크가 한 번 끊기면 컨텍스트 초기화를 중단시킨다
+      initialization-fail-timeout: 120000   # 2분
       # Render Free = 512MB, Supabase 무료 풀러도 커넥션이 넉넉하지 않다.
       maximum-pool-size: 5
       minimum-idle: 1
+
+  batch:
+    jdbc:
+      # 플랫폼을 명시하면 배치 초기화가 DB 메타데이터를 읽지 않는다.
+      # 비워 두면 기동 때 커넥션을 먼저 요구해 실패 지점이 하나 늘어난다
+      platform: postgresql
 
   jpa:
     # 뷰 렌더링까지 세션을 붙들지 않는다. 커넥션 5개로 버티려면 빨리 돌려줘야 한다
