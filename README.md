@@ -177,8 +177,8 @@ BOM 부품 재고는 단일 IN 쿼리로 일괄 조회하여 N+1 방지.
 
 ## 테스트 전략
 
-TDD로 개발. 총 **421개 테스트** — 백엔드 352 · 프론트 단위 51 · E2E 18.
-백엔드는 JaCoCo 기준 **라인 94.1% / 브랜치 87.4%**
+TDD로 개발. 총 **428개 테스트** — 백엔드 359 · 프론트 단위 51 · E2E 18.
+백엔드는 JaCoCo 기준 **라인 94.0% / 브랜치 87.4%**
 
 <details>
 <summary><b>레이어별 테스트 구성과 커버리지 기준</b></summary>
@@ -300,7 +300,7 @@ IMS/
 │   │       ├── scheduler/   # SettlementBatchConfig, SettlementJobScheduler
 │   │       ├── config/      # RedisConfig, BatchConfig, DataInitializer
 │   │       └── exception/   # ImsException, ErrorCode, GlobalExceptionHandler
-│   └── src/test/            # 단위 · 통합 · 슬라이스 테스트 (352개)
+│   └── src/test/            # 단위 · 통합 · 슬라이스 테스트 (359개)
 │
 ├── frontend/
 │   └── app/

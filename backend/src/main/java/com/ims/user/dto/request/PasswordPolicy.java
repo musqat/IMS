@@ -9,7 +9,7 @@ package com.ims.user.dto.request;
 public final class PasswordPolicy {
 
     /**
-     * 영문과 숫자를 각각 하나 이상 포함해야 한다.
+     * 영문과 숫자를 각각 하나 이상 포함한다.
      * 특수문자는 강제하지 않는다 — 길이와 혼용만으로도 흔한 비밀번호는 걸러진다.
      */
     public static final String PATTERN = "^(?=.*[A-Za-z])(?=.*\\d).+$";

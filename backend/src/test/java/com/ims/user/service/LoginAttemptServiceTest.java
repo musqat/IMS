@@ -9,6 +9,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
@@ -92,5 +93,37 @@ class LoginAttemptServiceTest {
 
         // then
         then(redisTemplate).should().delete(KEY);
+    }
+
+    @Test
+    @DisplayName("Redis가 죽으면 잠금 검사를 건너뛴다")
+    void checkNotLocked_redisDown() {
+        // given
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(valueOperations.get(KEY)).willThrow(new RedisConnectionFailureException("연결 실패"));
+
+        // when & then
+        assertThatCode(() -> loginAttemptService.checkNotLocked(EMAIL)).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("Redis가 죽으면 실패를 세지 않고 넘어간다")
+    void recordFailure_redisDown() {
+        // given
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(valueOperations.increment(KEY)).willThrow(new RedisConnectionFailureException("연결 실패"));
+
+        // when & then
+        assertThatCode(() -> loginAttemptService.recordFailure(EMAIL)).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("Redis가 죽어도 카운터 삭제는 넘어간다")
+    void reset_redisDown() {
+        // given
+        willThrow(new RedisConnectionFailureException("연결 실패")).given(redisTemplate).delete(KEY);
+
+        // when & then
+        assertThatCode(() -> loginAttemptService.reset(EMAIL)).doesNotThrowAnyException();
     }
 }
