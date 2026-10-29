@@ -185,7 +185,7 @@ class UserControllerTest {
                 .andExpect(status().isOk());
 
         // then
-        // "Bearer " 접두사가 제거된 값이 넘어가야 한다
+        // "Bearer " 접두사를 제거한 값이 넘어간다
         then(userService).should().logout("refreshToken");
     }
 

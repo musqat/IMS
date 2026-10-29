@@ -15,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -330,5 +331,78 @@ class UserServiceTest {
         assertThatThrownBy(() -> userService.login(request))
                 .isInstanceOf(ImsException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.LOGIN_FAILED);
+    }
+
+    @Test
+    @DisplayName("Redis가 죽어도 로그인은 성공한다")
+    void login_redisDown() {
+        // given
+        LoginRequest request = new LoginRequest("test@test.com", "password123");
+        User user = User.builder().id(1L).email("test@test.com").password("encodedPassword").build();
+        given(userRepository.findByEmail(request.email())).willReturn(Optional.of(user));
+        given(passwordEncoder.matches(request.password(), "encodedPassword")).willReturn(true);
+        given(jwtProvider.generateAccessToken(1L)).willReturn("accessToken");
+        given(jwtProvider.generateRefreshToken(1L)).willReturn("refreshToken");
+        given(redisTemplate.opsForValue()).willReturn(valueOps);
+        willThrow(new RedisConnectionFailureException("연결 실패"))
+                .given(valueOps).set(eq("refresh:1"), eq("refreshToken"), any());
+
+        // when
+        LoginResponse response = userService.login(request);
+
+        // then
+        assertThat(response.accessToken()).isEqualTo("accessToken");
+    }
+
+    @Test
+    @DisplayName("Redis가 죽어도 회원가입은 성공한다")
+    void signUp_redisDown() {
+        // given
+        RegisterRequest request = new RegisterRequest("test@test.com", "password123", "테스트회사");
+        User saved = User.builder().id(1L).email("test@test.com").password("encodedPassword")
+                .companyName("테스트회사").companyCode("1000000001").build();
+        given(userRepository.existsByEmail(request.email())).willReturn(false);
+        given(userRepository.existsByCompanyCode(any())).willReturn(false);
+        given(passwordEncoder.encode(request.password())).willReturn("encodedPassword");
+        given(userRepository.save(any())).willReturn(saved);
+        given(jwtProvider.generateAccessToken(1L)).willReturn("accessToken");
+        given(jwtProvider.generateRefreshToken(1L)).willReturn("refreshToken");
+        given(redisTemplate.opsForValue()).willReturn(valueOps);
+        willThrow(new RedisConnectionFailureException("연결 실패"))
+                .given(valueOps).set(eq("refresh:1"), eq("refreshToken"), any());
+
+        // when
+        LoginResponse response = userService.signUp(request);
+
+        // then
+        assertThat(response.refreshToken()).isEqualTo("refreshToken");
+    }
+
+    @Test
+    @DisplayName("Redis가 죽으면 토큰 재발급은 막는다")
+    void refresh_redisDown() {
+        // given
+        given(jwtProvider.isValid("refreshToken")).willReturn(true);
+        given(jwtProvider.isRefreshToken("refreshToken")).willReturn(true);
+        given(jwtProvider.getUserId("refreshToken")).willReturn(1L);
+        given(redisTemplate.opsForValue()).willReturn(valueOps);
+        given(valueOps.get("refresh:1")).willThrow(new RedisConnectionFailureException("연결 실패"));
+
+        // when & then
+        assertThatThrownBy(() -> userService.refresh("refreshToken"))
+                .isInstanceOf(ImsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.DEPENDENCY_UNAVAILABLE);
+    }
+
+    @Test
+    @DisplayName("Redis가 죽어도 로그아웃은 끝낸다")
+    void logout_redisDown() {
+        // given
+        given(jwtProvider.extractUserIdLeniently("refreshToken")).willReturn(1L);
+        willThrow(new RedisConnectionFailureException("연결 실패"))
+                .given(redisTemplate).delete("refresh:1");
+
+        // when & then
+        assertThatCode(() -> userService.logout("refreshToken")).doesNotThrowAnyException();
     }
 }
