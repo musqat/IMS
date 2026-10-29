@@ -74,7 +74,10 @@ public enum ErrorCode {
     PRODUCTION_NOT_MODIFIABLE(HttpStatus.BAD_REQUEST, "PENDING 상태의 생산 기록만 수정할 수 있습니다."),
     PRODUCTION_ALREADY_SETTLED(HttpStatus.CONFLICT, "이미 결산된 생산 기록입니다."),
     PRODUCTION_NOT_SETTLED(HttpStatus.BAD_REQUEST, "결산이 완료된 생산 기록이 아닙니다."),
-    SETTLEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 결산 기록입니다.");
+    SETTLEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 결산 기록입니다."),
+
+    // 의존성
+    DEPENDENCY_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "데이터베이스 또는 캐시에 연결할 수 없습니다.");
 
     private final HttpStatus status;
     private final String message;
